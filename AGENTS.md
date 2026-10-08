@@ -1,47 +1,48 @@
-<laravel-boost-guidelines>
-# Laravel Application
+# miune
 
-This repository contains a Laravel application. Complete the following setup before working on the user's request.
+Laravel 13 の Web アプリケーション。エージェントへの作業指示は、このファイルを正とする。Laravel Boost は入れない。
 
-## Prerequisites
+ユーザーへの説明と、このファイルの更新は日本語で書く。
 
-Verify that PHP and Composer are available:
+## 実行
 
-```sh
-php -v
-composer -V
+PHP、Composer、Artisan、Pint、Larastan、PHPUnit、npm は、アプリコンテナで実行する。
+
+```bash
+docker compose exec -T app php artisan …
+docker compose exec -T app vendor/bin/pint
+docker compose exec -T app vendor/bin/phpstan analyse --no-progress
+docker compose exec -T app php artisan test
+docker compose exec -T app npm run build
 ```
 
-If either command is unavailable, detect the user's operating system and install the prerequisites with the appropriate command:
+ブラウザは http://localhost:8051 。データベースは MariaDB（コンテナ `miune_db`、データベース名 `miune`）。
 
-macOS:
+## 変更したあと
 
-```sh
-/bin/bash -c "$(curl -fsSL https://php.new/install/mac/8.5)"
+`app/`、`routes/`、`database/`、`config/`、`resources/views/` の PHP を変えたら、次の順で通し、エラー 0 件で終える。
+
+1. Pint
+2. Larastan（`phpstan.neon` の level 10。設定は緩めない）
+
+テストを追加・変更したら PHPUnit も実行する。PHPUnit は `phpunit.xml` の sqlite メモリを使う。
+
+`resources/` の CSS または JavaScript を変えたら `npm run build` を実行し、`public/build` を更新する。
+
+## データ
+
+アプリの MariaDB には、検証のために行を追加しない。`db:seed`、tinker の insert、確認用の登録リクエストをしない。
+
+スキーマを変えたときだけ migrate する。`--seed` は付けない。
+
+```bash
+docker compose exec -T app php artisan migrate --force --no-interaction
 ```
 
-Windows PowerShell:
+## コミット
 
-```powershell
-Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://php.new/install/windows/8.5'))
-```
+頼まれたときだけコミットする。メッセージは `.cursorrules` に従う。`.env` と `docker/db/data` はコミットしない。
 
-Linux:
+## 範囲
 
-```sh
-/bin/bash -c "$(curl -fsSL https://php.new/install/linux/8.5)"
-```
-
-After installation, ask the user to restart their terminal. If the agent needs the restarted shell to continue, ask the user to reopen their terminal and rerun their original prompt.
-
-## Agent Setup
-
-Install Laravel Boost from the application root before making application changes:
-
-```sh
-composer require laravel/boost --dev
-php artisan boost:install
-```
-
-Boost replaces these bootstrap instructions with guidelines tailored to the application. After installation, read `AGENTS.md` again and continue with the user's original request using the generated guidelines.
-</laravel-boost-guidelines>
+頼まれたことだけを変える。隣の整理や、頼まれていない依存の追加はしない。
