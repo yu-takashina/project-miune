@@ -1,0 +1,62 @@
+services:
+  app:
+    # ホスト:コンテナ = ブラウザからの HTTP ポート
+    ports:
+      - "8051:80"
+    build:
+      context: ./app
+      args:
+        TZ: Asia/Tokyo
+        UID: ${HOST_UID:-1000}
+        GID: ${HOST_GID:-1000}
+    container_name: miune_app
+    environment:
+      APACHE_DOCUMENT_ROOT: /var/www/html/public
+      TZ: Asia/Tokyo
+    volumes:
+      - ..:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mariadb:13.0.2
+    container_name: miune_db
+    # データ・ログのバインドマウント先に書き込めるよう、ホストの作業ユーザーで動かす
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    environment:
+      MARIADB_DATABASE: miune
+      MARIADB_USER: miune
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      TZ: Asia/Tokyo
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    volumes:
+      - ./db/my.cnf:/etc/mysql/conf.d/my.cnf:ro
+      - ./db/data:/var/lib/mysql
+      - ./db/log:/var/log/mysql
+    ports:
+      - "127.0.0.1:3306:3306"
+
+  phpmyadmin:
+    container_name: miune_pma
+    image: phpmyadmin:5.2.3
+    environment:
+      PMA_HOST: db
+    volumes:
+      - ./phpmyadmin/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php:ro
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      db:
+        condition: service_healthy

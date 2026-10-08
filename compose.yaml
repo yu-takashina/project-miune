@@ -1,0 +1,5 @@
+name: miune
+
+# サービス定義は docker/compose.yaml。変数は docker/.env から読み込まれる
+include:
+  - docker/compose.yaml
