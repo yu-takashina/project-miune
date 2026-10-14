@@ -1,5 +1,6 @@
 services:
   app:
+    image: miune-app
     # ホスト:コンテナ = ブラウザからの HTTP ポート
     ports:
       - "8051:80"
@@ -13,6 +14,21 @@ services:
     environment:
       APACHE_DOCUMENT_ROOT: /var/www/html/public
       TZ: Asia/Tokyo
+    volumes:
+      - ..:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # 1分おきに起動して1秒に1ページ取得し、毎日サイトマップの差分を更新する
+  scheduler:
+    image: miune-app
+    container_name: miune_scheduler
+    environment:
+      TZ: Asia/Tokyo
+    working_dir: /var/www/html
+    command: php artisan schedule:work
+    restart: unless-stopped
     volumes:
       - ..:/var/www/html
     depends_on:

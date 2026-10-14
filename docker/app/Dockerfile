@@ -45,5 +45,8 @@ RUN apt-get update \
  && usermod -o -u "$UID" -g "$GID" www-data \
  && chown www-data:www-data /var/www
 
+USER root
+RUN docker-php-ext-install pcntl
+
 # Apache と docker compose exec の既定ユーザーを www-data にする（root 作業は exec -u root）
 USER www-data
