@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ExtractionStatus;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -19,6 +20,10 @@ use Illuminate\Support\Carbon;
  * @property int|null $response_bytes
  * @property string|null $body
  * @property string|null $body_sha256
+ * @property string|null $article_text 採用した本文。抽出器ごとの文字列は保存しない。
+ * @property string|null $article_text_sha256 本文が空のときは null。
+ * @property ExtractionStatus|null $extraction_status 本文を採用できたとき、未抽出のときは null。
+ * @property Carbon|null $extracted_at
  * @property Carbon|null $crawled_at
  * @property string|null $error_message
  */
@@ -32,6 +37,9 @@ use Illuminate\Support\Carbon;
     'response_bytes',
     'body',
     'body_sha256',
+    'article_text',
+    'extraction_status',
+    'extracted_at',
     'crawled_at',
     'error_message',
 ])]
@@ -41,6 +49,9 @@ class SitemapPage extends Model
     {
         static::saving(function (SitemapPage $page): void {
             $page->url_sha256 = hash('sha256', $page->url);
+            $page->article_text_sha256 = is_string($page->article_text) && $page->article_text !== ''
+                ? hash('sha256', $page->article_text)
+                : null;
         });
     }
 
@@ -53,8 +64,18 @@ class SitemapPage extends Model
             'searchable' => 'boolean',
             'unlisted_at' => 'datetime',
             'absence_count' => 'integer',
+            'extraction_status' => ExtractionStatus::class,
+            'extracted_at' => 'datetime',
             'crawled_at' => 'datetime',
         ];
+    }
+
+    /**
+     * 採用して保存した本文。
+     */
+    public function articleText(): ?string
+    {
+        return $this->article_text;
     }
 
     /**
