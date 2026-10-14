@@ -1,7 +1,8 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\Manager\DashboardController;
+use App\Http\Controllers\Manager\SitemapController;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -15,5 +16,15 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
-    Route::get('/manager', DashboardController::class)->name('manager');
+    Route::get('/manager', function (): RedirectResponse {
+        return redirect()->route('sitemap.index');
+    })->name('manager');
+    Route::get('/manager/sitemap', [SitemapController::class, 'index'])->name('sitemap.index');
+    Route::post('/manager/sitemaps', [SitemapController::class, 'store'])->name('manager.sitemaps.store');
+    Route::post('/manager/sitemaps/{sitemap}/crawl', [SitemapController::class, 'crawlNow'])->name('manager.sitemaps.crawl');
+    Route::get('/manager/sitemaps/{sitemap}', [SitemapController::class, 'show'])->name('manager.sitemaps.show');
+    Route::patch('/manager/sitemaps/{sitemap}/pages/{page}', [SitemapController::class, 'updateSearchable'])->name('manager.sitemaps.pages.searchable');
+    Route::post('/manager/sitemaps/{sitemap}/pages/{page}/crawl', [SitemapController::class, 'crawl'])->name('manager.sitemaps.pages.crawl');
+    Route::patch('/manager/sitemaps/{sitemap}/absence-limit', [SitemapController::class, 'updateAbsenceLimit'])->name('manager.sitemaps.absence-limit');
+    Route::delete('/manager/sitemaps/{sitemap}', [SitemapController::class, 'destroy'])->name('manager.sitemaps.destroy');
 });

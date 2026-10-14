@@ -63,17 +63,28 @@ class LoginTest extends TestCase
     public function test_guests_are_redirected_from_the_manager(): void
     {
         $this->get('/manager')->assertRedirect('/login');
+        $this->get('/manager/sitemap')->assertRedirect('/login');
     }
 
-    public function test_authenticated_users_can_view_the_manager(): void
+    public function test_the_manager_redirects_to_the_sitemap_index(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->get('/manager')
+            ->assertRedirect(route('sitemap.index'));
+    }
+
+    public function test_authenticated_users_can_view_the_sitemap_index(): void
     {
         $user = User::factory()->create();
 
         $this->actingAs($user)
-            ->get('/manager')
+            ->get('/manager/sitemap')
             ->assertOk()
-            ->assertSee('ダッシュボード')
-            ->assertSee('ログアウト');
+            ->assertSee('aria-label="グローバルナビゲーション"', false)
+            ->assertSee('href="'.route('sitemap.index').'"', false)
+            ->assertSee('サイトマップ')
+            ->assertSee('ログアウト')
+            ->assertDontSee($user->name);
     }
 
     public function test_authenticated_users_are_redirected_from_the_login_screen(): void

@@ -7,3 +7,126 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+.search-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    color: inherit;
+    cursor: pointer;
+}
+
+.search-toggle:disabled {
+    cursor: wait;
+}
+
+button[data-crawl]:disabled,
+button[data-sitemap-crawl]:disabled {
+    cursor: wait;
+    background-color: #c9c9c4;
+    color: #706f6c;
+}
+
+.search-toggle-track {
+    position: relative;
+    display: inline-block;
+    width: 2.75rem;
+    height: 1.5rem;
+    border-radius: 9999px;
+    background: #c9c9c4;
+}
+
+.search-toggle[aria-checked="true"] .search-toggle-track {
+    background: #1b1b18;
+}
+
+.search-toggle-knob {
+    position: absolute;
+    top: 0.1875rem;
+    left: 0.1875rem;
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 9999px;
+    background: #fff;
+    transition: transform 150ms ease;
+}
+
+.search-toggle[aria-checked="true"] .search-toggle-knob {
+    transform: translateX(1.25rem);
+}
+
+tr[data-search-off="true"] > td {
+    background-color: #ececea;
+}
+
+.sitemap-delete-dialog {
+    position: fixed;
+    inset: 0;
+    width: min(28rem, calc(100% - 2rem));
+    height: fit-content;
+    max-height: calc(100% - 2rem);
+    margin: auto;
+    border: 1px solid #e3e3e0;
+    border-radius: 0.125rem;
+    background: #fff;
+    padding: 1.5rem;
+    color: #1b1b18;
+}
+
+.sitemap-delete-dialog::backdrop {
+    background: rgb(27 27 24 / 0.45);
+}
+
+.sitemap-delete-dialog [data-sitemap-delete-confirm]:disabled {
+    cursor: wait;
+    background-color: #c9c9c4;
+    color: #706f6c;
+}
+
+.help-mark {
+    display: inline-flex;
+    height: 1rem;
+    width: 1rem;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #c9c9c4;
+    border-radius: 9999px;
+    background: #fff;
+    color: #1b1b18;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.help-mark:hover,
+.help-mark:focus-visible {
+    border-color: #1b1b18;
+}
+
+.help-popover {
+    position: fixed;
+    inset: auto;
+    width: min(20rem, calc(100vw - 1rem));
+    height: auto;
+    max-height: none;
+    margin: 0;
+    overflow: visible;
+    border: 1px solid #e3e3e0;
+    border-radius: 0.125rem;
+    background: #fff;
+    padding: 0.75rem 1rem;
+    color: #1b1b18;
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 1.6;
+    text-align: left;
+    box-shadow: 0 8px 24px rgb(27 27 24 / 0.12);
+}
+
+.help-popover::backdrop {
+    background: transparent;
+}
