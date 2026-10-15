@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -22,6 +23,8 @@ use Illuminate\Support\Carbon;
  * @property string|null $body_sha256
  * @property string|null $article_text 採用した本文。抽出器ごとの文字列は保存しない。
  * @property string|null $article_text_sha256 本文が空のときは null。
+ * @property string|null $embedding_error
+ * @property string|null $embedding_failed_sha256 同じ本文では再送しない失敗の本文ハッシュ。
  * @property ExtractionStatus|null $extraction_status 本文を採用できたとき、未抽出のときは null。
  * @property Carbon|null $extracted_at
  * @property Carbon|null $crawled_at
@@ -45,6 +48,18 @@ use Illuminate\Support\Carbon;
 ])]
 class SitemapPage extends Model
 {
+    /**
+     * 抜き直しの前に消した本文ハッシュ。列ではない。
+     */
+    public ?string $articleHashAtFetch = null;
+
+    public bool $articleHashRemembered = false;
+
+    /**
+     * 抜き直しの直前だけ true。本文ハッシュを一時的に空にしてもベクトル行は残す。
+     */
+    public bool $retainEmbeddings = false;
+
     protected static function booted(): void
     {
         static::saving(function (SitemapPage $page): void {
@@ -52,6 +67,18 @@ class SitemapPage extends Model
             $page->article_text_sha256 = is_string($page->article_text) && $page->article_text !== ''
                 ? hash('sha256', $page->article_text)
                 : null;
+        });
+
+        static::saved(function (SitemapPage $page): void {
+            if ($page->article_text_sha256 !== null || $page->retainEmbeddings) {
+                return;
+            }
+
+            if (! $page->wasChanged('article_text') && ! $page->wasChanged('article_text_sha256')) {
+                return;
+            }
+
+            $page->embeddings()->delete();
         });
     }
 
@@ -79,6 +106,37 @@ class SitemapPage extends Model
     }
 
     /**
+     * 採用本文があり、そのハッシュのベクトル行が無く、同じ本文では成功しない失敗でもないページ。
+     *
+     * @param  Builder<SitemapPage>  $query
+     */
+    public function scopeMissingEmbedding(Builder $query): void
+    {
+        $query->whereNotNull('article_text_sha256')
+            ->where(function (Builder $query): void {
+                $query->whereNull('embedding_failed_sha256')
+                    ->orWhereColumn('embedding_failed_sha256', '!=', 'article_text_sha256');
+            })
+            ->whereDoesntHave('embeddings', function (Builder $query): void {
+                $query->whereColumn(
+                    'sitemap_page_embeddings.article_text_sha256',
+                    'sitemap_pages.article_text_sha256',
+                );
+            });
+    }
+
+    public function hasEmbeddingForArticle(): bool
+    {
+        $hash = $this->article_text_sha256;
+
+        if (! is_string($hash) || $hash === '') {
+            return false;
+        }
+
+        return $this->embeddings()->where('article_text_sha256', $hash)->exists();
+    }
+
+    /**
      * サイト内検索に出すページ。掲載中で、検索対象が ON、本文があるもの。
      *
      * @param  Builder<SitemapPage>  $query
@@ -96,6 +154,14 @@ class SitemapPage extends Model
     public function sitemap(): BelongsTo
     {
         return $this->belongsTo(Sitemap::class);
+    }
+
+    /**
+     * @return HasMany<SitemapPageEmbedding, $this>
+     */
+    public function embeddings(): HasMany
+    {
+        return $this->hasMany(SitemapPageEmbedding::class);
     }
 
     public function formattedResponseSize(): ?string

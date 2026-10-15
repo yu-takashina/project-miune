@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Enums\ExtractionStatus;
 use App\Models\SitemapPage;
+use App\Services\EmbedSitemapPage;
 use App\Services\ExtractSitemapPage;
 use App\Services\HtmlDocumentDecoder;
 use Illuminate\Bus\Batchable;
@@ -103,9 +104,8 @@ class CrawlSitemapPage implements ShouldQueue
         }
 
         $hash = hash('sha256', $body);
-        $alreadyExtracted = $page->body_sha256 !== null
-            && hash_equals($page->body_sha256, $hash)
-            && $page->extracted_at !== null
+        $bodyUnchanged = $page->body_sha256 !== null && hash_equals($page->body_sha256, $hash);
+        $extractionFinished = $page->extracted_at !== null
             && $page->extraction_status !== ExtractionStatus::Failed;
 
         $values = [
@@ -117,19 +117,36 @@ class CrawlSitemapPage implements ShouldQueue
             'crawled_at' => now(),
         ];
 
-        if (! $alreadyExtracted) {
-            $values += [
-                'article_text' => null,
-                'extraction_status' => null,
-                'extracted_at' => null,
-            ];
-        }
+        if ($bodyUnchanged && $extractionFinished && $page->hasEmbeddingForArticle()) {
+            $page->update($values);
 
-        $page->update($values);
-
-        if ($alreadyExtracted) {
             return;
         }
+
+        if ($bodyUnchanged && $extractionFinished && $page->article_text_sha256 === null) {
+            $page->update($values);
+
+            return;
+        }
+
+        if ($bodyUnchanged && $extractionFinished) {
+            $page->update($values);
+            $this->embed($page);
+
+            return;
+        }
+
+        $page->articleHashRemembered = true;
+        $page->articleHashAtFetch = $page->article_text_sha256;
+        $page->retainEmbeddings = true;
+        $values += [
+            'article_text' => null,
+            'extraction_status' => null,
+            'extracted_at' => null,
+        ];
+
+        $page->update($values);
+        $page->retainEmbeddings = false;
 
         try {
             app(ExtractSitemapPage::class)->apply($page, $this->utf8ContentType($contentType));
@@ -139,6 +156,15 @@ class CrawlSitemapPage implements ShouldQueue
                 'extraction_status' => ExtractionStatus::Failed,
                 'extracted_at' => now(),
             ]);
+        }
+    }
+
+    private function embed(SitemapPage $page): void
+    {
+        try {
+            (new EmbedSitemapPage)->apply($page);
+        } catch (Throwable) {
+            return;
         }
     }
 

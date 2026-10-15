@@ -101,9 +101,10 @@ class CrawlDueSitemapPages
         $deadline = microtime(true) + $this->budgetSeconds;
         $started = false;
         $nextAt = microtime(true);
+        $attempted = [];
 
         while (true) {
-            $page = $this->nextPage($sitemapId);
+            $page = $this->nextPage($sitemapId, $attempted);
 
             if (! $page instanceof SitemapPage) {
                 break;
@@ -115,6 +116,7 @@ class CrawlDueSitemapPages
 
             $fetchedAt = microtime(true);
             (new CrawlSitemapPage($page->id))->handle();
+            $attempted[] = $page->id;
             $this->advanceRecrawl($page);
             $nextAt = $fetchedAt + $this->intervalSeconds;
             $started = true;
@@ -165,18 +167,25 @@ class CrawlDueSitemapPages
         return true;
     }
 
-    private function nextPage(?int $sitemapId = null): ?SitemapPage
+    /**
+     * @param  list<int>  $exceptIds
+     */
+    private function nextPage(?int $sitemapId = null, array $exceptIds = []): ?SitemapPage
     {
         $page = SitemapPage::query()
             ->whereNull('unlisted_at')
             ->when($sitemapId !== null, function (Builder $query) use ($sitemapId): void {
                 $query->where('sitemap_id', $sitemapId);
             })
+            ->when($exceptIds !== [], function (Builder $query) use ($exceptIds): void {
+                $query->whereNotIn('id', $exceptIds);
+            })
             ->whereHas('sitemap', function (Builder $query): void {
                 $query->where('status', SitemapStatus::Crawling);
             })
             ->where(function (Builder $query): void {
                 $query->whereNull('crawled_at')
+                    ->orWhere(fn (Builder $query) => $query->missingEmbedding())
                     ->orWhereHas('sitemap', function (Builder $sitemap): void {
                         $sitemap->whereColumn('sitemaps.recrawl_after_page_id', '<', 'sitemap_pages.id');
                     });
@@ -208,7 +217,8 @@ class CrawlDueSitemapPages
                 $remaining = $sitemap->pages()
                     ->whereNull('unlisted_at')
                     ->where(function (Builder $query) use ($recrawlAfter): void {
-                        $query->whereNull('crawled_at');
+                        $query->whereNull('crawled_at')
+                            ->orWhere(fn (Builder $query) => $query->missingEmbedding());
 
                         if ($recrawlAfter !== null) {
                             $query->orWhere('id', '>', $recrawlAfter);
