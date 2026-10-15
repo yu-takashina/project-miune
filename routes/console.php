@@ -4,6 +4,7 @@ use App\Enums\SitemapStatus;
 use App\Jobs\InspectSitemap;
 use App\Models\Sitemap;
 use App\Services\CrawlDueSitemapPages;
+use App\Services\ExtractStoredSitemapPages;
 use App\Services\SitemapUrlsetReader;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -31,6 +32,11 @@ Artisan::command('sitemaps:refresh', function (): void {
 Artisan::command('sitemaps:recrawl', function (): void {
     app(CrawlDueSitemapPages::class)->requeueCompleted();
 })->purpose('登録済みサイトマップを読み直し、掲載URLをすべて取得し直す');
+
+Artisan::command('sitemaps:extract', function (): void {
+    $count = (new ExtractStoredSitemapPages)->run();
+    $this->info($count.' ページを抽出しました。');
+})->purpose('保存済みの本文から Readability と Trafilatura で採用する本文を抜く');
 
 Schedule::command('sitemaps:crawl')->everyMinute()->withoutOverlapping(10);
 // recrawl も sitemap を読み直すので、同じ日に refresh を重ねて不在回数を二重に数えない

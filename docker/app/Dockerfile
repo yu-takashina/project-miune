@@ -48,5 +48,12 @@ RUN apt-get update \
 USER root
 RUN docker-php-ext-install pcntl
 
+# Trafilatura は PHP から標準入力で呼ぶ。巡回は app と scheduler が同じイメージで動く。
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 python3-venv \
+ && python3 -m venv /opt/trafilatura \
+ && /opt/trafilatura/bin/pip install --no-cache-dir 'trafilatura==2.3.1' \
+ && rm -rf /var/lib/apt/lists/*
+
 # Apache と docker compose exec の既定ユーザーを www-data にする（root 作業は exec -u root）
 USER www-data

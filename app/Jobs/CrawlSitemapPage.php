@@ -2,7 +2,11 @@
 
 namespace App\Jobs;
 
+use App\Enums\ExtractionStatus;
 use App\Models\SitemapPage;
+use App\Services\EmbedSitemapPage;
+use App\Services\ExtractSitemapPage;
+use App\Services\HtmlDocumentDecoder;
 use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -63,14 +67,118 @@ class CrawlSitemapPage implements ShouldQueue
             $tooLarge = $exceeded;
         }
 
-        $page->update([
+        if ($tooLarge) {
+            $page->update([
+                'http_status' => $response->status(),
+                'response_bytes' => $contentLength ?? $actualBytes,
+                'body' => null,
+                'body_sha256' => null,
+                'article_text' => null,
+                'extraction_status' => null,
+                'extracted_at' => null,
+                'error_message' => 'レスポンスが大きすぎます。',
+                'crawled_at' => now(),
+            ]);
+
+            return;
+        }
+
+        $contentType = $response->header('Content-Type');
+        $contentType = $contentType === '' ? null : $contentType;
+        $body = (new HtmlDocumentDecoder)->toUtf8Body($body, $contentType);
+
+        if ($body === null) {
+            $page->update([
+                'http_status' => $response->status(),
+                'response_bytes' => $contentLength ?? $actualBytes,
+                'body' => null,
+                'body_sha256' => null,
+                'article_text' => null,
+                'extraction_status' => ExtractionStatus::Failed,
+                'extracted_at' => now(),
+                'error_message' => '文字コードを UTF-8 に変換できません。',
+                'crawled_at' => now(),
+            ]);
+
+            return;
+        }
+
+        $hash = hash('sha256', $body);
+        $bodyUnchanged = $page->body_sha256 !== null && hash_equals($page->body_sha256, $hash);
+        $extractionFinished = $page->extracted_at !== null
+            && $page->extraction_status !== ExtractionStatus::Failed;
+
+        $values = [
             'http_status' => $response->status(),
             'response_bytes' => $contentLength ?? $actualBytes,
-            'body' => $tooLarge ? null : $body,
-            'body_sha256' => $tooLarge ? null : hash('sha256', $body),
-            'error_message' => $tooLarge ? 'レスポンスが大きすぎます。' : null,
+            'body' => $body,
+            'body_sha256' => $hash,
+            'error_message' => null,
             'crawled_at' => now(),
-        ]);
+        ];
+
+        if ($bodyUnchanged && $extractionFinished && $page->hasEmbeddingForArticle()) {
+            $page->update($values);
+
+            return;
+        }
+
+        if ($bodyUnchanged && $extractionFinished && $page->article_text_sha256 === null) {
+            $page->update($values);
+
+            return;
+        }
+
+        if ($bodyUnchanged && $extractionFinished) {
+            $page->update($values);
+            $this->embed($page);
+
+            return;
+        }
+
+        $page->articleHashRemembered = true;
+        $page->articleHashAtFetch = $page->article_text_sha256;
+        $page->retainEmbeddings = true;
+        $values += [
+            'article_text' => null,
+            'extraction_status' => null,
+            'extracted_at' => null,
+        ];
+
+        $page->update($values);
+        $page->retainEmbeddings = false;
+
+        try {
+            app(ExtractSitemapPage::class)->apply($page, $this->utf8ContentType($contentType));
+        } catch (Throwable) {
+            $page->update([
+                'article_text' => null,
+                'extraction_status' => ExtractionStatus::Failed,
+                'extracted_at' => now(),
+            ]);
+        }
+    }
+
+    private function embed(SitemapPage $page): void
+    {
+        try {
+            (new EmbedSitemapPage)->apply($page);
+        } catch (Throwable) {
+            return;
+        }
+    }
+
+    private function utf8ContentType(?string $contentType): ?string
+    {
+        if ($contentType === null) {
+            return null;
+        }
+
+        if (preg_match('/charset\s*=/i', $contentType) === 1) {
+            return preg_replace('/charset\s*=\s*"?[A-Za-z0-9._:-]+"?/i', 'charset=UTF-8', $contentType) ?? $contentType;
+        }
+
+        return $contentType.'; charset=UTF-8';
     }
 
     /**
