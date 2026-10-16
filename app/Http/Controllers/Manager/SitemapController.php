@@ -6,9 +6,9 @@ use App\Enums\SitemapStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Manager\StoreSitemapRequest;
 use App\Jobs\CrawlSitemapPage;
+use App\Jobs\InspectSitemap;
 use App\Models\Sitemap;
 use App\Models\SitemapPage;
-use App\Services\CrawlDueSitemapPages;
 use App\Services\SitemapTreeReader;
 use App\Services\SitemapUrlsetReader;
 use Illuminate\Database\Eloquent\Builder;
@@ -153,7 +153,7 @@ class SitemapController extends Controller
 
     public function crawlNow(Sitemap $sitemap): JsonResponse
     {
-        (new CrawlDueSitemapPages(0, CrawlDueSitemapPages::MANUAL_BUDGET_SECONDS))->crawlSitemap($sitemap);
+        (new InspectSitemap($sitemap->id, true))->handle(new SitemapUrlsetReader);
         $sitemap->refresh();
 
         return response()->json([

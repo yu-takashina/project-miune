@@ -25,10 +25,14 @@ use Illuminate\Support\Carbon;
  * @property string|null $article_text_sha256 本文が空のときは null。
  * @property string|null $embedding_error
  * @property string|null $embedding_failed_sha256 同じ本文では再送しない失敗の本文ハッシュ。
+ * @property int $embedding_failure_count 一時的な失敗が続いた回数。成功で 0 に戻す。
+ * @property Carbon|null $embedding_retry_at この日時まではベクトル化を試さない。
  * @property ExtractionStatus|null $extraction_status 本文を採用できたとき、未抽出のときは null。
  * @property Carbon|null $extracted_at
- * @property Carbon|null $crawled_at
+ * @property Carbon|null $crawled_at 取得できた日時。接続できなかったときは更新しない。
  * @property string|null $error_message
+ * @property int $fetch_failure_count 取得に失敗し続けた回数。取得できたら 0 に戻す。
+ * @property Carbon|null $fetch_retry_at この日時までは定期の巡回で取得しない。
  */
 #[Fillable([
     'sitemap_id',
@@ -45,20 +49,23 @@ use Illuminate\Support\Carbon;
     'extracted_at',
     'crawled_at',
     'error_message',
+    'fetch_failure_count',
+    'fetch_retry_at',
 ])]
 class SitemapPage extends Model
 {
     /**
-     * 抜き直しの前に消した本文ハッシュ。列ではない。
-     */
-    public ?string $articleHashAtFetch = null;
-
-    public bool $articleHashRemembered = false;
-
-    /**
      * 抜き直しの直前だけ true。本文ハッシュを一時的に空にしてもベクトル行は残す。
      */
     public bool $retainEmbeddings = false;
+
+    /**
+     * @var array<string, int>
+     */
+    protected $attributes = [
+        'fetch_failure_count' => 0,
+        'embedding_failure_count' => 0,
+    ];
 
     protected static function booted(): void
     {
@@ -94,6 +101,10 @@ class SitemapPage extends Model
             'extraction_status' => ExtractionStatus::class,
             'extracted_at' => 'datetime',
             'crawled_at' => 'datetime',
+            'fetch_failure_count' => 'integer',
+            'fetch_retry_at' => 'datetime',
+            'embedding_failure_count' => 'integer',
+            'embedding_retry_at' => 'datetime',
         ];
     }
 

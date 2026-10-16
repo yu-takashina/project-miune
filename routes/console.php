@@ -4,8 +4,10 @@ use App\Enums\SitemapStatus;
 use App\Jobs\InspectSitemap;
 use App\Models\Sitemap;
 use App\Services\CrawlDueSitemapPages;
+use App\Services\EmbedPendingSitemapPages;
 use App\Services\ExtractStoredSitemapPages;
 use App\Services\SitemapUrlsetReader;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -14,31 +16,35 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Artisan::command('sitemaps:crawl', function (): void {
-    app(CrawlDueSitemapPages::class)->run();
-})->purpose('未取得の掲載URLを1秒に1ページ取得する');
-
-Artisan::command('sitemaps:refresh', function (): void {
+Artisan::command('sitemaps:inspect', function (): void {
     $reader = new SitemapUrlsetReader;
 
     Sitemap::query()
-        ->where('status', SitemapStatus::Completed)
+        ->whereIn('status', [SitemapStatus::Pending, SitemapStatus::Completed])
+        ->where(function (Builder $query): void {
+            $query->whereNull('crawled_at')
+                ->orWhere('crawled_at', '<=', now()->subDay());
+        })
         ->orderBy('id')
         ->each(function (Sitemap $sitemap) use ($reader): void {
-            (new InspectSitemap($sitemap->id, true))->handle($reader);
+            (new InspectSitemap($sitemap->id))->handle($reader);
         });
-})->purpose('登録済みサイトマップの掲載URLを差分で更新する');
+})->purpose('未読か前回の読み込みから1日経ったサイトマップを読み、掲載URLを同期する');
 
-Artisan::command('sitemaps:recrawl', function (): void {
-    app(CrawlDueSitemapPages::class)->requeueCompleted();
-})->purpose('登録済みサイトマップを読み直し、掲載URLをすべて取得し直す');
+Artisan::command('sitemaps:crawl', function (): void {
+    app(CrawlDueSitemapPages::class)->run();
+})->purpose('未取得か前回の取得から7日経った掲載URLを1秒に1ページ取得し、本文を抜く');
+
+Artisan::command('sitemaps:embed', function (): void {
+    $count = (new EmbedPendingSitemapPages)->run();
+    $this->info($count.' ページのベクトル化を試しました。');
+})->purpose('採用本文が変わったページをベクトル化する');
 
 Artisan::command('sitemaps:extract', function (): void {
     $count = (new ExtractStoredSitemapPages)->run();
     $this->info($count.' ページを抽出しました。');
 })->purpose('保存済みの本文から Readability と Trafilatura で採用する本文を抜く');
 
+Schedule::command('sitemaps:inspect')->hourly()->withoutOverlapping(60);
 Schedule::command('sitemaps:crawl')->everyMinute()->withoutOverlapping(10);
-// recrawl も sitemap を読み直すので、同じ日に refresh を重ねて不在回数を二重に数えない
-Schedule::command('sitemaps:refresh')->dailyAt('04:30')->days([1, 2, 3, 4, 5, 6])->withoutOverlapping(60);
-Schedule::command('sitemaps:recrawl')->weeklyOn(0, '04:30')->withoutOverlapping(60);
+Schedule::command('sitemaps:embed')->everyMinute()->withoutOverlapping(10);

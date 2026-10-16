@@ -2,18 +2,18 @@
 
 namespace Tests\Feature;
 
-use App\Enums\SitemapStatus;
+use App\Enums\CrawlErrorKind;
 use App\Jobs\CrawlSitemapPage;
+use App\Models\CrawlErrorLog;
 use App\Models\Sitemap;
 use App\Models\SitemapPage;
 use App\Models\SitemapPageEmbedding;
-use App\Services\CrawlDueSitemapPages;
+use App\Services\EmbedPendingSitemapPages;
 use App\Services\ExtractSitemapPage;
 use App\Services\OpenAiEmbeddings;
 use App\Services\ReadabilityTextExtractor;
 use App\Services\TrafilaturaTextExtractor;
 use GuzzleHttp\Promise\PromiseInterface;
-use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Collection;
@@ -35,15 +35,20 @@ class SitemapEmbeddingTest extends TestCase
         Http::preventStrayRequests();
     }
 
-    public function test_a_changed_article_is_embedded_during_the_crawl(): void
+    public function test_a_changed_article_is_embedded_by_the_embed_step_not_the_crawl(): void
     {
         $this->fakeCrawl('本文A', '本文A');
         $page = $this->page();
 
         CrawlSitemapPage::dispatchSync($page->id);
 
+        $this->assertSame('本文A', $page->refresh()->articleText());
+        $this->assertSame(0, $this->embeddingCalls());
+        $this->assertSame(0, $page->embeddings()->count());
+
+        $this->embed();
+
         $page->refresh();
-        $this->assertSame('本文A', $page->articleText());
         $this->assertNull($page->embedding_error);
         $this->assertNull($page->embedding_failed_sha256);
         $this->assertSame(1, $page->embeddings()->count());
@@ -56,19 +61,21 @@ class SitemapEmbeddingTest extends TestCase
         $this->assertSame(1, $this->embeddingCalls());
     }
 
-    public function test_the_same_body_stops_before_embedding(): void
+    public function test_the_same_body_is_not_embedded_again(): void
     {
         $this->fakeCrawl('本文A', '本文A');
         $page = $this->page();
 
         CrawlSitemapPage::dispatchSync($page->id);
+        $this->embed();
         CrawlSitemapPage::dispatchSync($page->id);
+        $this->embed();
 
         $this->assertSame(1, $this->embeddingCalls());
         $this->assertSame(1, $page->embeddings()->count());
     }
 
-    public function test_the_same_article_hash_stops_before_embedding(): void
+    public function test_the_same_article_hash_is_not_embedded_again(): void
     {
         Http::fake([
             'https://example.com/note' => Http::sequence()
@@ -80,14 +87,30 @@ class SitemapEmbeddingTest extends TestCase
         $page = $this->page();
 
         CrawlSitemapPage::dispatchSync($page->id);
-        $this->insertEmbedding($page->refresh(), '[0]');
+        $this->embed();
         CrawlSitemapPage::dispatchSync($page->id);
+        $this->embed();
 
         $page->refresh();
         $this->assertSame('同じ本文', $page->articleText());
         $this->assertSame(1, $this->embeddingCalls());
-        $this->assertSame(2, $page->embeddings()->count());
-        $this->assertTrue($page->embeddings()->where('embedding', '[0]')->exists());
+        $this->assertSame(1, $page->embeddings()->count());
+    }
+
+    public function test_an_article_changed_outside_the_crawl_is_embedded_again(): void
+    {
+        $this->fakeCrawl('本文A', '本文A');
+        $page = $this->page();
+        CrawlSitemapPage::dispatchSync($page->id);
+        $this->embed();
+
+        $page->refresh()->update(['article_text' => '本文B']);
+        $this->embed();
+
+        $page->refresh();
+        $this->assertSame(2, $this->embeddingCalls());
+        $this->assertSame(1, $page->embeddings()->count());
+        $this->assertTrue($page->hasEmbeddingForArticle());
     }
 
     public function test_clearing_the_article_deletes_every_vector(): void
@@ -103,11 +126,13 @@ class SitemapEmbeddingTest extends TestCase
         $this->assertNull($page->refresh()->article_text_sha256);
     }
 
-    public function test_the_same_body_without_a_vector_embeds_without_extracting_again(): void
+    public function test_a_temporary_failure_doubles_the_wait_before_the_next_try(): void
     {
+        $this->freezeSecond();
         Http::fake([
             'https://example.com/note' => $this->htmlResponse(),
             'https://api.openai.com/v1/embeddings' => Http::sequence()
+                ->push(['error' => ['message' => 'overloaded']], 503)
                 ->push(['error' => ['message' => 'overloaded']], 503)
                 ->push([
                     'data' => [
@@ -115,25 +140,40 @@ class SitemapEmbeddingTest extends TestCase
                     ],
                 ]),
         ]);
-        $readability = $this->createMock(ReadabilityTextExtractor::class);
-        $readability->method('extract')->willReturnOnConsecutiveCalls('本文A', '別の本文');
-        $trafilatura = $this->createMock(TrafilaturaTextExtractor::class);
-        $trafilatura->method('extract')->willReturnOnConsecutiveCalls('本文A', '別の本文');
-        $this->app->instance(ExtractSitemapPage::class, new ExtractSitemapPage(
-            readability: $readability,
-            trafilatura: $trafilatura,
-        ));
+        $this->bindExtractor('本文A', '本文A');
         $page = $this->page();
+        CrawlSitemapPage::dispatchSync($page->id);
 
-        CrawlSitemapPage::dispatchSync($page->id);
-        CrawlSitemapPage::dispatchSync($page->id);
+        $this->embed();
 
         $page->refresh();
-        $this->assertSame('本文A', $page->articleText());
-        $this->assertNull($page->embedding_error);
+        $this->assertSame('埋め込み API が失敗しました。', $page->embedding_error);
         $this->assertNull($page->embedding_failed_sha256);
+        $this->assertSame(1, $page->embedding_failure_count);
+        $this->assertTrue(now()->addMinute()->equalTo($page->embedding_retry_at));
+        $log = CrawlErrorLog::query()->sole();
+        $this->assertSame(CrawlErrorKind::Embedding, $log->kind);
+        $this->assertSame($page->id, $log->sitemap_page_id);
+
+        $this->embed();
+        $this->assertSame(1, $this->embeddingCalls());
+
+        $this->travel(1)->minutes();
+        $this->embed();
+
+        $page->refresh();
+        $this->assertSame(2, $page->embedding_failure_count);
+        $this->assertTrue(now()->addMinutes(2)->equalTo($page->embedding_retry_at));
+
+        $this->travel(2)->minutes();
+        $this->embed();
+
+        $page->refresh();
+        $this->assertSame(3, $this->embeddingCalls());
         $this->assertSame(1, $page->embeddings()->count());
-        $this->assertSame(2, $this->embeddingCalls());
+        $this->assertSame(0, $page->embedding_failure_count);
+        $this->assertNull($page->embedding_retry_at);
+        $this->assertNull($page->embedding_error);
     }
 
     public function test_a_context_length_error_records_the_failed_hash(): void
@@ -151,52 +191,18 @@ class SitemapEmbeddingTest extends TestCase
         $page = $this->page();
 
         CrawlSitemapPage::dispatchSync($page->id);
-        CrawlSitemapPage::dispatchSync($page->id);
+        $this->embed();
+        $this->embed();
 
         $page->refresh();
         $this->assertSame('長すぎる本文', $page->articleText());
         $this->assertSame('本文が長すぎてベクトル化できません。', $page->embedding_error);
         $this->assertSame(hash('sha256', '長すぎる本文'), $page->embedding_failed_sha256);
+        $this->assertSame(0, $page->embedding_failure_count);
+        $this->assertNull($page->embedding_retry_at);
         $this->assertSame(0, $page->embeddings()->count());
         $this->assertSame(1, $this->embeddingCalls());
-    }
-
-    public function test_a_crawled_page_without_a_vector_stays_due_until_it_is_embedded(): void
-    {
-        $body = $this->html('one');
-        Http::fake([
-            'https://example.com/note' => $this->htmlResponse(),
-            'https://api.openai.com/v1/embeddings' => Http::sequence()
-                ->push(['error' => ['message' => 'overloaded']], 503)
-                ->push([
-                    'data' => [
-                        ['embedding' => array_fill(0, OpenAiEmbeddings::DIMENSIONS, 0.5), 'index' => 0],
-                    ],
-                ]),
-        ]);
-        $this->bindExtractor('本文A', '本文A');
-        $sitemap = Sitemap::factory()->create(['status' => SitemapStatus::Crawling]);
-        $page = SitemapPage::query()->create([
-            'sitemap_id' => $sitemap->id,
-            'url' => 'https://example.com/note',
-            'body' => $body,
-            'body_sha256' => hash('sha256', $body),
-            'article_text' => '本文A',
-            'extracted_at' => now(),
-            'crawled_at' => now(),
-        ]);
-
-        (new CrawlDueSitemapPages(0, 3600))->crawlListedPages();
-
-        $this->assertSame(SitemapStatus::Crawling, $sitemap->refresh()->status);
-        $this->assertSame(1, $this->embeddingCalls());
-        $this->assertSame(0, $page->embeddings()->count());
-
-        (new CrawlDueSitemapPages(0, 3600))->crawlListedPages();
-
-        $this->assertSame(SitemapStatus::Completed, $sitemap->refresh()->status);
-        $this->assertSame(1, $page->embeddings()->count());
-        $this->assertSame(2, $this->embeddingCalls());
+        $this->assertSame(1, CrawlErrorLog::query()->count());
     }
 
     public function test_only_the_first_four_thousand_characters_are_sent(): void
@@ -206,6 +212,7 @@ class SitemapEmbeddingTest extends TestCase
         $page = $this->page();
 
         CrawlSitemapPage::dispatchSync($page->id);
+        $this->embed();
 
         Http::assertSent(function (Request $request): bool {
             if ($request->url() !== 'https://api.openai.com/v1/embeddings') {
@@ -218,50 +225,74 @@ class SitemapEmbeddingTest extends TestCase
         });
     }
 
-    public function test_a_missing_api_key_leaves_the_extracted_article(): void
+    public function test_a_missing_api_key_pauses_the_embed_step(): void
     {
+        $this->freezeSecond();
         config(['services.openai.key' => null]);
         $this->fakeCrawl('本文A', '本文A');
         $page = $this->page();
-
         CrawlSitemapPage::dispatchSync($page->id);
+
+        $this->embed();
+        $this->embed();
 
         $page->refresh();
         $this->assertSame('本文A', $page->articleText());
         $this->assertNull($page->embedding_error);
+        $this->assertSame(0, $page->embedding_failure_count);
         $this->assertSame(0, $this->embeddingCalls());
+        $log = CrawlErrorLog::query()->sole();
+        $this->assertSame(CrawlErrorKind::Embedding, $log->kind);
+        $this->assertNull($log->sitemap_page_id);
+        $this->assertSame('OPENAI_API_KEY が未設定です。', $log->message);
     }
 
-    public function test_an_authentication_failure_leaves_the_extracted_article(): void
+    public function test_an_authentication_failure_pauses_the_embed_step_with_a_doubling_wait(): void
     {
+        $this->freezeSecond();
         Http::fake([
-            'https://example.com/note' => Http::response($this->html('one'), 200, [
-                'Content-Type' => 'text/html; charset=UTF-8',
-            ]),
-            'https://api.openai.com/v1/embeddings' => Http::response([
-                'error' => ['message' => 'invalid api key'],
-            ], 401),
+            'https://example.com/note' => $this->htmlResponse(),
+            'https://api.openai.com/v1/embeddings' => Http::sequence()
+                ->push(['error' => ['message' => 'invalid api key']], 401)
+                ->push(['error' => ['message' => 'invalid api key']], 401)
+                ->push([
+                    'data' => [
+                        ['embedding' => array_fill(0, OpenAiEmbeddings::DIMENSIONS, 0.5), 'index' => 0],
+                    ],
+                ]),
         ]);
         $this->bindExtractor('本文A', '本文A');
         $page = $this->page();
-
         CrawlSitemapPage::dispatchSync($page->id);
+
+        $this->embed();
+        $this->embed();
 
         $page->refresh();
         $this->assertSame('本文A', $page->articleText());
         $this->assertNull($page->embedding_error);
         $this->assertNull($page->embedding_failed_sha256);
-        $this->assertSame(0, $page->embeddings()->count());
+        $this->assertSame(0, $page->embedding_failure_count);
+        $this->assertSame(1, $this->embeddingCalls());
+
+        $this->travel(1)->minutes();
+        $this->embed();
+        $this->travel(1)->minutes();
+        $this->embed();
+
+        $this->assertSame(2, $this->embeddingCalls());
+
+        $this->travel(1)->minutes();
+        $this->embed();
+
+        $this->assertSame(3, $this->embeddingCalls());
+        $this->assertSame(1, $page->embeddings()->count());
+        $this->assertSame(2, CrawlErrorLog::query()->count());
     }
 
-    public function test_embed_is_not_scheduled(): void
+    private function embed(): void
     {
-        $commands = collect(app(Schedule::class)->events())
-            ->map(fn ($event): string => (string) $event->command);
-
-        $this->assertFalse($commands->contains(
-            fn (string $command): bool => str_contains($command, 'sitemaps:embed'),
-        ));
+        (new EmbedPendingSitemapPages)->run();
     }
 
     private function page(): SitemapPage

@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Enums\SitemapStatus;
+use App\Models\CrawlErrorLog;
 use App\Models\Sitemap;
 use App\Models\SitemapPage;
 use App\Services\SitemapTreeReader;
@@ -27,7 +28,10 @@ class InspectSitemap implements ShouldQueue
     /** sitemap を辿り終えるまでの時間より長くする。子 sitemap 1件で最大 30 秒かかる。 */
     public const LOCK_SECONDS = 600;
 
-    public function __construct(public int $sitemapId, public bool $refresh = false) {}
+    /**
+     * @param  bool  $retryFailed  取得失敗と書式エラーも、ロックを取ってから読み直す。一覧の「今すぐ巡回」だけが true にする。
+     */
+    public function __construct(public int $sitemapId, public bool $retryFailed = false) {}
 
     public static function depthErrorMessage(): string
     {
@@ -40,29 +44,41 @@ class InspectSitemap implements ShouldQueue
     }
 
     /**
-     * 深さエラーのときと、同じ sitemap を別の処理が読み込み中のときに false を返す。呼び出し側は再巡回へ進まない。
+     * 確認待ちと巡回済の sitemap を読み、掲載 URL を同期する。ページの取得は sitemaps:crawl が行う。
+     * 同じ sitemap を別の処理が読み込み中のときは何もしない。
      */
-    public function handle(SitemapUrlsetReader $reader): bool
+    public function handle(SitemapUrlsetReader $reader): void
     {
         $lock = Cache::lock(self::lockKey($this->sitemapId), self::LOCK_SECONDS);
 
         if (! $lock->get()) {
-            return false;
+            return;
         }
 
         try {
-            return $this->inspect($reader);
+            $this->inspect($reader);
         } finally {
             $lock->release();
         }
     }
 
-    private function inspect(SitemapUrlsetReader $reader): bool
+    private function inspect(SitemapUrlsetReader $reader): void
     {
         $sitemap = Sitemap::query()->find($this->sitemapId);
 
-        if ($sitemap === null || ! $this->shouldInspect($sitemap)) {
-            return true;
+        if ($sitemap === null) {
+            return;
+        }
+
+        if ($this->retryFailed && in_array($sitemap->status, [SitemapStatus::Failed, SitemapStatus::Invalid], true)) {
+            $sitemap->update([
+                'status' => SitemapStatus::Pending,
+                'error_message' => null,
+            ]);
+        }
+
+        if (! in_array($sitemap->status, [SitemapStatus::Pending, SitemapStatus::Completed], true)) {
+            return;
         }
 
         $collected = (new SitemapTreeReader($reader))->collect($sitemap->url);
@@ -70,88 +86,55 @@ class InspectSitemap implements ShouldQueue
         if ($collected['status'] === 'too_deep') {
             $this->markDepthError($sitemap, $collected['message']);
 
-            return false;
+            return;
         }
 
         if ($collected['status'] === 'failed') {
-            if (! $this->isRefresh()) {
+            CrawlErrorLog::forSitemap($sitemap, $collected['message']);
+
+            if (! $this->isRefresh($sitemap)) {
                 $this->markFailed($sitemap, $collected['message']);
             }
 
-            return true;
+            return;
         }
 
         if ($collected['status'] === 'invalid') {
-            if (! $this->isRefresh()) {
-                $sitemap->update([
-                    'status' => SitemapStatus::Invalid,
-                    'error_message' => $collected['message'],
-                ]);
-            }
+            $this->markInvalid($sitemap, $collected['message']);
 
-            return true;
+            return;
         }
 
         $locs = array_values(array_unique($collected['locs']));
 
         if ($locs === []) {
-            if (! $this->isRefresh()) {
-                $sitemap->update([
-                    'status' => SitemapStatus::Invalid,
-                    'error_message' => 'sitemap.xml の書式が正しくありません。',
-                ]);
-            }
+            $this->markInvalid($sitemap, 'sitemap.xml の書式が正しくありません。');
 
-            return true;
+            return;
         }
 
-        $pages = $this->syncPages($sitemap, $locs);
-
-        if ($pages !== [] || $this->isRefresh() || $sitemap->status !== SitemapStatus::Crawling) {
-            return true;
-        }
-
-        $sitemap->update([
-            'status' => SitemapStatus::Completed,
-        ]);
-
-        return true;
+        $this->syncPages($sitemap, $locs);
     }
 
-    private function shouldInspect(Sitemap $sitemap): bool
+    /**
+     * 一度読めた sitemap の読み直し。失敗しても状態は巡回済のまま残す。
+     */
+    private function isRefresh(Sitemap $sitemap): bool
     {
-        if ($this->isRefresh()) {
-            return $sitemap->status === SitemapStatus::Completed;
-        }
-
-        return $sitemap->status === SitemapStatus::Pending;
-    }
-
-    private function isRefresh(): bool
-    {
-        return $this->refresh;
+        return $sitemap->status === SitemapStatus::Completed;
     }
 
     /**
      * @param  list<string>  $locs
-     * @return list<SitemapPage>
      */
-    private function syncPages(Sitemap $sitemap, array $locs): array
+    private function syncPages(Sitemap $sitemap, array $locs): void
     {
-        /** @var list<SitemapPage> $toCrawl */
-        $toCrawl = [];
-
-        $sitemap->getConnection()->transaction(function () use ($sitemap, $locs, &$toCrawl): void {
-            $changes = [
+        $sitemap->getConnection()->transaction(function () use ($sitemap, $locs): void {
+            $sitemap->update([
+                'status' => SitemapStatus::Completed,
                 'crawled_at' => now(),
                 'error_message' => null,
-            ];
-
-            if (! $this->isRefresh()) {
-                $changes['status'] = SitemapStatus::Crawling;
-            }
-
-            $sitemap->update($changes);
+            ]);
 
             /** @var Collection<string, SitemapPage> $existing */
             $existing = $sitemap->pages()->get()->keyBy(
@@ -167,7 +150,7 @@ class InspectSitemap implements ShouldQueue
                 $page = $existing->get($hash);
 
                 if (! $page instanceof SitemapPage) {
-                    $toCrawl[] = SitemapPage::query()->create([
+                    SitemapPage::query()->create([
                         'sitemap_id' => $sitemap->id,
                         'url' => $loc,
                     ]);
@@ -179,19 +162,14 @@ class InspectSitemap implements ShouldQueue
                     continue;
                 }
 
-                $skipFetch = $page->body_sha256 !== null;
                 $page->unlisted_at = null;
                 $page->absence_count = 0;
 
-                if (! $skipFetch) {
+                if ($page->body_sha256 === null) {
                     $page->crawled_at = null;
                 }
 
                 $page->save();
-
-                if (! $skipFetch) {
-                    $toCrawl[] = $page;
-                }
             }
 
             foreach ($existing as $hash => $page) {
@@ -213,25 +191,32 @@ class InspectSitemap implements ShouldQueue
 
                 $page->save();
             }
-
-            if ($this->isRefresh() && $toCrawl !== []) {
-                $sitemap->update([
-                    'status' => SitemapStatus::Crawling,
-                    'error_message' => null,
-                ]);
-            }
         });
-
-        return $toCrawl;
     }
 
     private function markDepthError(Sitemap $sitemap, string $message): void
     {
-        if ($this->isRefresh()) {
+        CrawlErrorLog::forSitemap($sitemap, $message);
+
+        if ($this->isRefresh($sitemap)) {
             $sitemap->update([
                 'error_message' => $message,
             ]);
 
+            return;
+        }
+
+        $sitemap->update([
+            'status' => SitemapStatus::Invalid,
+            'error_message' => $message,
+        ]);
+    }
+
+    private function markInvalid(Sitemap $sitemap, string $message): void
+    {
+        CrawlErrorLog::forSitemap($sitemap, $message);
+
+        if ($this->isRefresh($sitemap)) {
             return;
         }
 
@@ -257,10 +242,13 @@ class InspectSitemap implements ShouldQueue
             return;
         }
 
-        if ($this->isRefresh() || $sitemap->status !== SitemapStatus::Pending) {
+        $message = 'sitemap.xml を取得できませんでした。';
+        CrawlErrorLog::forSitemap($sitemap, $message);
+
+        if ($sitemap->status !== SitemapStatus::Pending) {
             return;
         }
 
-        $this->markFailed($sitemap, 'sitemap.xml を取得できませんでした。');
+        $this->markFailed($sitemap, $message);
     }
 }
