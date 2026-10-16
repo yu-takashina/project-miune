@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Manager\SitemapController;
+use App\Http\Controllers\SearchController;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Route;
 
@@ -16,6 +17,7 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
+    Route::get('/manager/search', SearchController::class)->middleware('throttle:30,1')->name('search');
     Route::get('/manager', function (): RedirectResponse {
         return redirect()->route('sitemap.index');
     })->name('manager');

@@ -23,18 +23,12 @@ class OpenAiEmbeddings
             throw new OpenAiEmbeddingException('OPENAI_API_KEY が未設定です。', false, true);
         }
 
-        $model = config('services.openai.embedding_model');
-
-        if (! is_string($model) || $model === '') {
-            $model = 'text-embedding-3-small';
-        }
-
         try {
             $response = Http::withToken($key)
                 ->timeout(30)
                 ->acceptJson()
                 ->post('https://api.openai.com/v1/embeddings', [
-                    'model' => $model,
+                    'model' => $this->model(),
                     'input' => mb_substr($text, 0, self::MAX_INPUT_CHARACTERS),
                     'dimensions' => self::DIMENSIONS,
                 ]);
@@ -55,6 +49,17 @@ class OpenAiEmbeddings
         }
 
         return $this->vector($response);
+    }
+
+    public function model(): string
+    {
+        $model = config('services.openai.embedding_model');
+
+        if (! is_string($model) || $model === '') {
+            return 'text-embedding-3-small';
+        }
+
+        return $model;
     }
 
     private function isPermanent(Response $response): bool
