@@ -771,7 +771,7 @@ class SitemapTest extends TestCase
     {
         Http::preventStrayRequests();
         Http::fake([
-            'https://example.com/back' => Http::response('missing', 404),
+            'https://example.com/back' => Http::response('missing', 500),
         ]);
 
         $page = SitemapPage::query()->create([
@@ -784,10 +784,59 @@ class SitemapTest extends TestCase
         (new CrawlDueSitemapPages(0, 3600))->run();
 
         $page->refresh();
-        $this->assertSame(404, $page->http_status);
+        $this->assertSame(500, $page->http_status);
         $this->assertSame(0, $page->fetch_failure_count);
         $this->assertNull($page->fetch_retry_at);
         $this->assertNull($page->error_message);
+    }
+
+    public function test_an_http_404_is_treated_as_a_failed_fetch(): void
+    {
+        $this->freezeSecond();
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://example.com/missing' => Http::response('gone', 404),
+            'https://example.com/new' => Http::response('gone', 404),
+        ]);
+
+        $crawledAt = now()->subDays(30);
+        $page = SitemapPage::query()->create([
+            'sitemap_id' => $this->completedSitemap()->id,
+            'url' => 'https://example.com/missing',
+            'http_status' => 200,
+            'body' => 'kept',
+            'body_sha256' => hash('sha256', 'kept'),
+            'article_text' => 'kept',
+            'crawled_at' => $crawledAt,
+        ]);
+        $fresh = SitemapPage::query()->create([
+            'sitemap_id' => $page->sitemap_id,
+            'url' => 'https://example.com/new',
+        ]);
+
+        (new CrawlDueSitemapPages(0, 3600))->run();
+
+        $page->refresh();
+        $this->assertSame(200, $page->http_status);
+        $this->assertSame('kept', $page->body);
+        $this->assertSame('kept', $page->article_text);
+        $this->assertTrue($crawledAt->equalTo($page->crawled_at));
+        $this->assertSame(1, $page->fetch_failure_count);
+        $this->assertTrue(now()->addMinute()->equalTo($page->fetch_retry_at));
+        $this->assertSame('取得に失敗しました。', $page->error_message);
+        $this->assertDatabaseHas('crawl_error_logs', [
+            'kind' => CrawlErrorKind::Page->value,
+            'sitemap_page_id' => $page->id,
+            'http_status' => 404,
+            'message' => '取得に失敗しました。',
+        ]);
+
+        $fresh->refresh();
+        $this->assertNull($fresh->crawled_at);
+        $this->assertNull($fresh->http_status);
+        $this->assertNull($fresh->body);
+        $this->assertSame(1, $fresh->fetch_failure_count);
+        $this->assertSame('取得に失敗しました。', $fresh->error_message);
     }
 
     public function test_guests_cannot_view_sitemap_urls(): void
@@ -960,6 +1009,85 @@ class SitemapTest extends TestCase
             ->get('/manager/sitemaps/'.$sitemap->id.'?searchable=0&q=missing')
             ->assertOk()
             ->assertSee('一致する URL はありません。');
+    }
+
+    public function test_the_url_list_can_be_filtered_by_http_status(): void
+    {
+        $sitemap = Sitemap::factory()->create();
+        SitemapPage::query()->create([
+            'sitemap_id' => $sitemap->id,
+            'url' => 'https://example.com/ok',
+            'http_status' => 200,
+        ]);
+        SitemapPage::query()->create([
+            'sitemap_id' => $sitemap->id,
+            'url' => 'https://example.com/missing',
+            'http_status' => 404,
+        ]);
+        SitemapPage::query()->create([
+            'sitemap_id' => $sitemap->id,
+            'url' => 'https://example.com/moved',
+            'http_status' => 301,
+        ]);
+        SitemapPage::query()->create([
+            'sitemap_id' => $sitemap->id,
+            'url' => 'https://example.com/unknown',
+        ]);
+
+        $user = User::factory()->create();
+        $base = '/manager/sitemaps/'.$sitemap->id;
+
+        $this->actingAs($user)
+            ->get($base.'?status=200')
+            ->assertOk()
+            ->assertSee('https://example.com/ok')
+            ->assertDontSee('https://example.com/missing')
+            ->assertDontSee('https://example.com/moved')
+            ->assertDontSee('https://example.com/unknown')
+            ->assertSee('value="200" selected', false);
+
+        $this->actingAs($user)
+            ->get($base.'?status=404')
+            ->assertOk()
+            ->assertSee('https://example.com/missing')
+            ->assertDontSee('https://example.com/ok')
+            ->assertDontSee('https://example.com/moved')
+            ->assertDontSee('https://example.com/unknown');
+
+        $this->actingAs($user)
+            ->get($base.'?status=other')
+            ->assertOk()
+            ->assertSee('https://example.com/moved')
+            ->assertDontSee('https://example.com/ok')
+            ->assertDontSee('https://example.com/missing')
+            ->assertDontSee('https://example.com/unknown')
+            ->assertSee('value="other" selected', false);
+
+        $this->actingAs($user)
+            ->get($base)
+            ->assertOk()
+            ->assertSee('https://example.com/ok')
+            ->assertSee('https://example.com/missing')
+            ->assertSee('https://example.com/moved')
+            ->assertSee('https://example.com/unknown')
+            ->assertSee('>全て</option>', false);
+
+        $this->actingAs($user)
+            ->get($base.'?status=500')
+            ->assertOk()
+            ->assertSee('https://example.com/ok')
+            ->assertSee('https://example.com/unknown');
+
+        $this->actingAs($user)
+            ->get($base.'?status=other&q=absent')
+            ->assertOk()
+            ->assertSee('一致する URL はありません。')
+            ->assertDontSee('https://example.com/moved');
+
+        $this->actingAs($user)
+            ->get($base.'?status=200&sort=url&order=desc')
+            ->assertOk()
+            ->assertSee('status=200', false);
     }
 
     public function test_the_url_list_can_be_sorted_by_url_size_and_crawled_at(): void
@@ -1420,7 +1548,7 @@ class SitemapTest extends TestCase
 
         Http::assertNotSent(fn ($request): bool => $request->url() === 'https://example.com/dropped');
         $this->assertFalse(SitemapPage::query()->forSearch()->whereKey($dropped->id)->exists());
-        $this->assertTrue(SitemapPage::query()->forSearch()->whereKey($kept->id)->exists());
+        $this->assertFalse(SitemapPage::query()->forSearch()->whereKey($kept->id)->exists());
     }
 
     public function test_a_url_absent_from_three_successful_refreshes_is_deleted(): void
@@ -1684,7 +1812,7 @@ class SitemapTest extends TestCase
         $this->assertSame('alpha', $page->body);
     }
 
-    public function test_search_includes_only_listed_searchable_pages_with_a_body(): void
+    public function test_search_includes_only_listed_searchable_pages_with_a_body_except_http_404(): void
     {
         $sitemap = Sitemap::factory()->create();
         $listed = SitemapPage::query()->create([
@@ -1692,6 +1820,19 @@ class SitemapTest extends TestCase
             'url' => 'https://example.com/listed',
             'searchable' => true,
             'body' => 'listed',
+            'http_status' => 200,
+        ]);
+        $unknown = SitemapPage::query()->create([
+            'sitemap_id' => $sitemap->id,
+            'url' => 'https://example.com/unknown',
+            'searchable' => true,
+            'body' => 'unknown',
+        ]);
+        SitemapPage::query()->create([
+            'sitemap_id' => $sitemap->id,
+            'url' => 'https://example.com/missing',
+            'searchable' => true,
+            'body' => 'missing',
             'http_status' => 404,
         ]);
         SitemapPage::query()->create([
@@ -1714,7 +1855,7 @@ class SitemapTest extends TestCase
         ]);
 
         $this->assertSame(
-            [$listed->id],
+            [$listed->id, $unknown->id],
             SitemapPage::query()->forSearch()->orderBy('id')->pluck('id')->all(),
         );
     }

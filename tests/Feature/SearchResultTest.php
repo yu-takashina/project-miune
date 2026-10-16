@@ -168,21 +168,27 @@ class SearchResultTest extends TestCase
         $gone = $this->page($sitemap, 'https://example.com/gone', ['unlisted_at' => now()]);
         $stale = $this->page($sitemap, 'https://example.com/stale');
         $empty = $this->page($sitemap, 'https://example.com/empty', ['body' => null]);
+        $missing = $this->page($sitemap, 'https://example.com/missing', ['http_status' => 404]);
+        $unknown = $this->page($sitemap, 'https://example.com/unknown', ['http_status' => null]);
         $vector = $this->vector(1.0);
         $this->insertEmbedding($listed, $vector);
         $this->insertEmbedding($off, $vector);
         $this->insertEmbedding($gone, $vector);
         $this->insertEmbedding($stale, $vector, hash('sha256', '古い本文'));
         $this->insertEmbedding($empty, $vector);
+        $this->insertEmbedding($missing, $vector);
+        $this->insertEmbedding($unknown, $vector);
         $this->fakeEmbedding($vector);
 
         $this->get('/manager/search?q=対象')
             ->assertOk()
             ->assertSee('https://example.com/listed')
+            ->assertSee('https://example.com/unknown')
             ->assertDontSee('https://example.com/off')
             ->assertDontSee('https://example.com/gone')
             ->assertDontSee('https://example.com/stale')
-            ->assertDontSee('https://example.com/empty');
+            ->assertDontSee('https://example.com/empty')
+            ->assertDontSee('https://example.com/missing');
     }
 
     public function test_duplicate_embeddings_for_one_page_are_shown_once(): void

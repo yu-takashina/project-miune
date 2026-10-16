@@ -29,7 +29,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $embedding_retry_at この日時まではベクトル化を試さない。
  * @property ExtractionStatus|null $extraction_status 本文を採用できたとき、未抽出のときは null。
  * @property Carbon|null $extracted_at
- * @property Carbon|null $crawled_at 取得できた日時。接続できなかったときは更新しない。
+ * @property Carbon|null $crawled_at 取得できた日時。接続できなかったときと HTTP 404 のときは更新しない。
  * @property string|null $error_message
  * @property int $fetch_failure_count 取得に失敗し続けた回数。取得できたら 0 に戻す。
  * @property Carbon|null $fetch_retry_at この日時までは定期の巡回で取得しない。
@@ -148,7 +148,7 @@ class SitemapPage extends Model
     }
 
     /**
-     * サイト内検索に出すページ。掲載中で、検索対象が ON、本文があるもの。
+     * サイト内検索に出すページ。掲載中で、検索対象が ON、本文があり、HTTP 404 ではないもの。
      *
      * @param  Builder<SitemapPage>  $query
      */
@@ -156,7 +156,11 @@ class SitemapPage extends Model
     {
         $query->where('searchable', true)
             ->whereNull('unlisted_at')
-            ->whereNotNull('body');
+            ->whereNotNull('body')
+            ->where(function (Builder $query): void {
+                $query->whereNull('http_status')
+                    ->orWhere('http_status', '<>', 404);
+            });
     }
 
     /**

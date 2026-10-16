@@ -54,6 +54,13 @@ class CrawlSitemapPage implements ShouldQueue
             return;
         }
 
+        if ($response->status() === 404) {
+            $response->toPsrResponse()->getBody()->close();
+            $this->markFetchFailed($page, httpStatus: $response->status());
+
+            return;
+        }
+
         $this->storeResponse($page, $response);
     }
 
@@ -211,13 +218,13 @@ class CrawlSitemapPage implements ShouldQueue
     }
 
     /**
-     * 接続できないときは crawled_at を変えず、失敗が続くほど次の取得を遅らせる。
+     * 接続できないとき、または HTTP 404 のときは crawled_at を変えず、失敗が続くほど次の取得を遅らせる。
      */
-    private function markFetchFailed(SitemapPage $page, Throwable $exception): void
+    private function markFetchFailed(SitemapPage $page, ?Throwable $exception = null, ?int $httpStatus = null): void
     {
         $message = '取得に失敗しました。';
         $failures = $page->fetch_failure_count + 1;
-        CrawlErrorLog::forPage($page, $message.$exception->getMessage());
+        CrawlErrorLog::forPage($page, $message.($exception === null ? '' : $exception->getMessage()), $httpStatus);
         $page->update([
             'error_message' => $message,
             'fetch_failure_count' => $failures,
