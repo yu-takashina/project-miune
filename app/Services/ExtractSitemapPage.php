@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Enums\ExtractionStatus;
 use App\Models\SitemapPage;
 use Illuminate\Support\Carbon;
-use Throwable;
 
 class ExtractSitemapPage
 {
@@ -110,26 +109,10 @@ class ExtractSitemapPage
         ?ExtractionStatus $status,
         ?Carbon $extractedAt,
     ): void {
-        $previous = $page->articleHashRemembered
-            ? $page->articleHashAtFetch
-            : $page->article_text_sha256;
-
         $page->update([
             'article_text' => $articleText,
             'extraction_status' => $status,
             'extracted_at' => $extractedAt,
         ]);
-
-        $current = $page->article_text_sha256;
-
-        if ($current === null || ($current === $previous && $page->hasEmbeddingForArticle())) {
-            return;
-        }
-
-        try {
-            (new EmbedSitemapPage)->apply($page);
-        } catch (Throwable) {
-            return;
-        }
     }
 }

@@ -3,14 +3,14 @@
 namespace App\Jobs;
 
 use App\Enums\ExtractionStatus;
+use App\Models\CrawlErrorLog;
 use App\Models\SitemapPage;
-use App\Services\EmbedSitemapPage;
 use App\Services\ExtractSitemapPage;
 use App\Services\HtmlDocumentDecoder;
+use App\Support\RetryBackoff;
 use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Psr\Http\Message\StreamInterface;
@@ -25,6 +25,12 @@ class CrawlSitemapPage implements ShouldQueue
     public int $timeout = 60;
 
     public const MAX_BODY_BYTES = 2 * 1024 * 1024;
+
+    /** 応答を受け取れたら、取得失敗の回数と再試行の待ちを戻す。 */
+    private const FETCHED = [
+        'fetch_failure_count' => 0,
+        'fetch_retry_at' => null,
+    ];
 
     public function __construct(public int $sitemapPageId) {}
 
@@ -42,12 +48,8 @@ class CrawlSitemapPage implements ShouldQueue
                 ->withOptions(['stream' => true])
                 ->withHeaders(['User-Agent' => 'miune'])
                 ->get($page->url);
-        } catch (ConnectionException) {
-            $this->markFetchFailed($page);
-
-            return;
-        } catch (Throwable) {
-            $this->markFetchFailed($page);
+        } catch (Throwable $exception) {
+            $this->markFetchFailed($page, $exception);
 
             return;
         }
@@ -68,7 +70,10 @@ class CrawlSitemapPage implements ShouldQueue
         }
 
         if ($tooLarge) {
+            $message = 'レスポンスが大きすぎます。';
+            CrawlErrorLog::forPage($page, $message, $response->status());
             $page->update([
+                ...self::FETCHED,
                 'http_status' => $response->status(),
                 'response_bytes' => $contentLength ?? $actualBytes,
                 'body' => null,
@@ -76,7 +81,7 @@ class CrawlSitemapPage implements ShouldQueue
                 'article_text' => null,
                 'extraction_status' => null,
                 'extracted_at' => null,
-                'error_message' => 'レスポンスが大きすぎます。',
+                'error_message' => $message,
                 'crawled_at' => now(),
             ]);
 
@@ -88,7 +93,10 @@ class CrawlSitemapPage implements ShouldQueue
         $body = (new HtmlDocumentDecoder)->toUtf8Body($body, $contentType);
 
         if ($body === null) {
+            $message = '文字コードを UTF-8 に変換できません。';
+            CrawlErrorLog::forPage($page, $message, $response->status());
             $page->update([
+                ...self::FETCHED,
                 'http_status' => $response->status(),
                 'response_bytes' => $contentLength ?? $actualBytes,
                 'body' => null,
@@ -96,7 +104,7 @@ class CrawlSitemapPage implements ShouldQueue
                 'article_text' => null,
                 'extraction_status' => ExtractionStatus::Failed,
                 'extracted_at' => now(),
-                'error_message' => '文字コードを UTF-8 に変換できません。',
+                'error_message' => $message,
                 'crawled_at' => now(),
             ]);
 
@@ -109,6 +117,7 @@ class CrawlSitemapPage implements ShouldQueue
             && $page->extraction_status !== ExtractionStatus::Failed;
 
         $values = [
+            ...self::FETCHED,
             'http_status' => $response->status(),
             'response_bytes' => $contentLength ?? $actualBytes,
             'body' => $body,
@@ -117,27 +126,12 @@ class CrawlSitemapPage implements ShouldQueue
             'crawled_at' => now(),
         ];
 
-        if ($bodyUnchanged && $extractionFinished && $page->hasEmbeddingForArticle()) {
-            $page->update($values);
-
-            return;
-        }
-
-        if ($bodyUnchanged && $extractionFinished && $page->article_text_sha256 === null) {
-            $page->update($values);
-
-            return;
-        }
-
         if ($bodyUnchanged && $extractionFinished) {
             $page->update($values);
-            $this->embed($page);
 
             return;
         }
 
-        $page->articleHashRemembered = true;
-        $page->articleHashAtFetch = $page->article_text_sha256;
         $page->retainEmbeddings = true;
         $values += [
             'article_text' => null,
@@ -150,21 +144,13 @@ class CrawlSitemapPage implements ShouldQueue
 
         try {
             app(ExtractSitemapPage::class)->apply($page, $this->utf8ContentType($contentType));
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
+            CrawlErrorLog::forPage($page, '本文を抽出できません。'.$exception->getMessage(), $response->status());
             $page->update([
                 'article_text' => null,
                 'extraction_status' => ExtractionStatus::Failed,
                 'extracted_at' => now(),
             ]);
-        }
-    }
-
-    private function embed(SitemapPage $page): void
-    {
-        try {
-            (new EmbedSitemapPage)->apply($page);
-        } catch (Throwable) {
-            return;
         }
     }
 
@@ -224,11 +210,18 @@ class CrawlSitemapPage implements ShouldQueue
         return (int) $header;
     }
 
-    private function markFetchFailed(SitemapPage $page): void
+    /**
+     * 接続できないときは crawled_at を変えず、失敗が続くほど次の取得を遅らせる。
+     */
+    private function markFetchFailed(SitemapPage $page, Throwable $exception): void
     {
+        $message = '取得に失敗しました。';
+        $failures = $page->fetch_failure_count + 1;
+        CrawlErrorLog::forPage($page, $message.$exception->getMessage());
         $page->update([
-            'error_message' => '取得に失敗しました。',
-            'crawled_at' => $page->crawled_at ?? now(),
+            'error_message' => $message,
+            'fetch_failure_count' => $failures,
+            'fetch_retry_at' => RetryBackoff::nextAt($failures),
         ]);
     }
 }

@@ -238,7 +238,7 @@ function crawlSitemapNow(button) {
             setSitemapStatus(row, body.status_label, body.error_message);
             setPagesCount(row, body.pages_count);
             setCellText(row, '[data-sitemap-crawled-at]', body.crawled_at);
-            button.disabled = body.status_label === '巡回中';
+            button.disabled = false;
         })
         .catch(() => {
             button.disabled = false;
@@ -494,7 +494,7 @@ function setSitemapStatus(row, statusLabel, errorMessage) {
     const message = typeof errorMessage === 'string' ? errorMessage : '';
 
     cell.textContent = message !== '' ? message : statusLabel;
-    cell.classList.toggle('text-[#f53003]', message !== '' || statusLabel === '巡回中');
+    cell.classList.toggle('text-[#f53003]', message !== '');
 }
 
 function setPagesCount(row, count) {

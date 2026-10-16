@@ -80,7 +80,7 @@
                                         </a>
                                     </div>
                                 </td>
-                                <td data-sitemap-status @class(['px-3 py-2', 'text-[#f53003]' => filled($sitemap->error_message) || $sitemap->status === \App\Enums\SitemapStatus::Crawling])>{{ filled($sitemap->error_message) ? $sitemap->error_message : $sitemap->status->label() }}</td>
+                                <td data-sitemap-status @class(['px-3 py-2', 'text-[#f53003]' => filled($sitemap->error_message)])>{{ filled($sitemap->error_message) ? $sitemap->error_message : $sitemap->status->label() }}</td>
                                 <td class="px-3 py-2" data-sitemap-pages data-pages-url="{{ route('manager.sitemaps.show', $sitemap) }}">
                                     @if ($sitemap->pages_count > 0)
                                         <a class="underline underline-offset-4" href="{{ route('manager.sitemaps.show', $sitemap) }}">{{ $sitemap->pages_count }}</a>
@@ -127,7 +127,6 @@
                                             type="button"
                                             data-sitemap-crawl
                                             data-url="{{ route('manager.sitemaps.crawl', $sitemap) }}"
-                                            @disabled($sitemap->status === \App\Enums\SitemapStatus::Crawling)
                                         >今すぐ巡回</button>
                                         <form method="POST" action="{{ route('manager.sitemaps.destroy', $sitemap) }}">
                                             @csrf

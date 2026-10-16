@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Enums\CrawlErrorKind;
 use App\Enums\SitemapStatus;
 use App\Jobs\CrawlSitemapPage;
 use App\Jobs\InspectSitemap;
+use App\Models\CrawlErrorLog;
 use App\Models\Sitemap;
 use App\Models\SitemapPage;
 use App\Models\User;
@@ -436,7 +438,6 @@ class SitemapTest extends TestCase
         $sitemap->refresh();
         $page->refresh();
         $this->assertSame(SitemapStatus::Completed, $sitemap->status);
-        $this->assertNull($sitemap->recrawl_after_page_id);
         $this->assertSame(InspectSitemap::depthErrorMessage(), $sitemap->error_message);
         $this->assertSame('kept', $page->body);
         Http::assertNotSent(fn ($request): bool => $request->url() === 'https://example.com/kept');
@@ -617,9 +618,7 @@ class SitemapTest extends TestCase
             'https://example.com/b' => Http::response('bravo', 200),
         ]);
 
-        $sitemap = Sitemap::factory()->create([
-            'status' => SitemapStatus::Crawling,
-        ]);
+        $sitemap = $this->completedSitemap();
         $first = SitemapPage::query()->create([
             'sitemap_id' => $sitemap->id,
             'url' => 'https://example.com/a',
@@ -629,17 +628,15 @@ class SitemapTest extends TestCase
             'url' => 'https://example.com/b',
         ]);
 
-        (new CrawlDueSitemapPages(0, 0))->crawlListedPages();
+        (new CrawlDueSitemapPages(0, 0))->run();
 
         $this->assertSame('alpha', $first->refresh()->body);
         $this->assertNull($second->refresh()->crawled_at);
-        $this->assertSame(SitemapStatus::Crawling, $sitemap->refresh()->status);
         Http::assertNotSent(fn ($request): bool => $request->url() === 'https://example.com/b');
 
-        (new CrawlDueSitemapPages(0, 0))->crawlListedPages();
+        (new CrawlDueSitemapPages(0, 0))->run();
 
         $this->assertSame('bravo', $second->refresh()->body);
-        $this->assertSame(SitemapStatus::Completed, $sitemap->refresh()->status);
     }
 
     public function test_crawling_skips_pages_that_already_finished_or_left_the_sitemap(): void
@@ -651,9 +648,7 @@ class SitemapTest extends TestCase
             'https://example.com/gone' => Http::response('gone', 200),
         ]);
 
-        $sitemap = Sitemap::factory()->create([
-            'status' => SitemapStatus::Crawling,
-        ]);
+        $sitemap = $this->completedSitemap();
         $pending = SitemapPage::query()->create([
             'sitemap_id' => $sitemap->id,
             'url' => 'https://example.com/pending',
@@ -662,7 +657,7 @@ class SitemapTest extends TestCase
             'sitemap_id' => $sitemap->id,
             'url' => 'https://example.com/done',
             'body' => 'done',
-            'crawled_at' => now(),
+            'crawled_at' => now()->subDays(CrawlDueSitemapPages::RECRAWL_DAYS)->addMinute(),
         ]);
         SitemapPage::query()->create([
             'sitemap_id' => $sitemap->id,
@@ -670,15 +665,129 @@ class SitemapTest extends TestCase
             'unlisted_at' => now(),
         ]);
 
-        (new CrawlDueSitemapPages(0, 3600))->crawlListedPages();
+        (new CrawlDueSitemapPages(0, 3600))->run();
 
         $this->assertSame('pending', $pending->refresh()->body);
         $this->assertSame('done', $done->refresh()->body);
-        $this->assertSame(SitemapStatus::Completed, $sitemap->refresh()->status);
         Http::assertNotSent(fn ($request): bool => in_array($request->url(), [
             'https://example.com/done',
             'https://example.com/gone',
         ], true));
+    }
+
+    public function test_a_page_crawled_seven_days_ago_is_fetched_again(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://example.com/old' => Http::response('new body', 200),
+        ]);
+
+        $page = SitemapPage::query()->create([
+            'sitemap_id' => $this->completedSitemap()->id,
+            'url' => 'https://example.com/old',
+            'body' => 'old body',
+            'body_sha256' => hash('sha256', 'old body'),
+            'crawled_at' => now()->subDays(CrawlDueSitemapPages::RECRAWL_DAYS),
+        ]);
+
+        (new CrawlDueSitemapPages(0, 3600))->run();
+
+        $page->refresh();
+        $this->assertSame('new body', $page->body);
+        $this->assertTrue($page->crawled_at?->isToday());
+    }
+
+    public function test_a_failed_fetch_doubles_the_wait_up_to_one_day(): void
+    {
+        $this->freezeSecond();
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://example.com/down' => fn () => throw new ConnectionException('down'),
+        ]);
+
+        $crawledAt = now()->subDays(30);
+        $page = SitemapPage::query()->create([
+            'sitemap_id' => $this->completedSitemap()->id,
+            'url' => 'https://example.com/down',
+            'body' => 'kept',
+            'body_sha256' => hash('sha256', 'kept'),
+            'crawled_at' => $crawledAt,
+        ]);
+
+        (new CrawlDueSitemapPages(0, 3600))->run();
+
+        $page->refresh();
+        $this->assertSame(1, $page->fetch_failure_count);
+        $this->assertTrue(now()->addMinute()->equalTo($page->fetch_retry_at));
+        $this->assertTrue($crawledAt->equalTo($page->crawled_at));
+        $this->assertSame('kept', $page->body);
+        $this->assertSame('取得に失敗しました。', $page->error_message);
+        $this->assertDatabaseHas('crawl_error_logs', [
+            'kind' => CrawlErrorKind::Page->value,
+            'sitemap_page_id' => $page->id,
+            'url' => 'https://example.com/down',
+        ]);
+
+        (new CrawlDueSitemapPages(0, 3600))->run();
+        $this->assertSame(1, $page->refresh()->fetch_failure_count);
+
+        $this->travel(1)->minutes();
+        (new CrawlDueSitemapPages(0, 3600))->run();
+
+        $page->refresh();
+        $this->assertSame(2, $page->fetch_failure_count);
+        $this->assertTrue(now()->addMinutes(2)->equalTo($page->fetch_retry_at));
+
+        $page->update(['fetch_failure_count' => 20]);
+        $this->travel(2)->minutes();
+        (new CrawlDueSitemapPages(0, 3600))->run();
+
+        $page->refresh();
+        $this->assertSame(21, $page->fetch_failure_count);
+        $this->assertTrue(now()->addDay()->equalTo($page->fetch_retry_at));
+        $this->assertSame(3, CrawlErrorLog::query()->count());
+    }
+
+    public function test_a_never_fetched_page_keeps_an_empty_crawled_at_after_a_failed_fetch(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://example.com/down' => fn () => throw new ConnectionException('down'),
+        ]);
+
+        $page = SitemapPage::query()->create([
+            'sitemap_id' => $this->completedSitemap()->id,
+            'url' => 'https://example.com/down',
+        ]);
+
+        (new CrawlDueSitemapPages(0, 3600))->run();
+
+        $page->refresh();
+        $this->assertNull($page->crawled_at);
+        $this->assertSame(1, $page->fetch_failure_count);
+    }
+
+    public function test_a_successful_fetch_resets_the_failure_count(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://example.com/back' => Http::response('missing', 404),
+        ]);
+
+        $page = SitemapPage::query()->create([
+            'sitemap_id' => $this->completedSitemap()->id,
+            'url' => 'https://example.com/back',
+            'fetch_failure_count' => 5,
+            'fetch_retry_at' => now()->subSecond(),
+        ]);
+
+        (new CrawlDueSitemapPages(0, 3600))->run();
+
+        $page->refresh();
+        $this->assertSame(404, $page->http_status);
+        $this->assertSame(0, $page->fetch_failure_count);
+        $this->assertNull($page->fetch_retry_at);
+        $this->assertNull($page->error_message);
     }
 
     public function test_guests_cannot_view_sitemap_urls(): void
@@ -1122,11 +1231,17 @@ class SitemapTest extends TestCase
             ]);
 
         $this->assertSame(SitemapStatus::Completed, $sitemap->status);
-        $this->assertSame('alpha', SitemapPage::query()->where('url', 'https://example.com/a')->firstOrFail()->body);
-        $this->assertSame('bravo', SitemapPage::query()->where('url', 'https://example.com/b')->firstOrFail()->body);
+        $this->assertSame(
+            [null, null],
+            $sitemap->pages()->orderBy('id')->pluck('crawled_at')->all(),
+        );
         $this->assertSame(SitemapStatus::Pending, $other->refresh()->status);
         $this->assertSame(0, $other->pages()->count());
-        Http::assertNotSent(fn ($request): bool => $request->url() === 'https://example.com/other.xml');
+        Http::assertNotSent(fn ($request): bool => in_array($request->url(), [
+            'https://example.com/a',
+            'https://example.com/b',
+            'https://example.com/other.xml',
+        ], true));
     }
 
     public function test_guests_cannot_crawl_a_sitemap_immediately(): void
@@ -1139,7 +1254,7 @@ class SitemapTest extends TestCase
         $this->assertSame(0, $sitemap->pages()->count());
     }
 
-    public function test_an_immediate_crawl_refetches_registered_pages_and_new_pages(): void
+    public function test_an_immediate_crawl_syncs_urls_and_leaves_fetching_to_the_scheduled_crawl(): void
     {
         Http::preventStrayRequests();
         Http::fake([
@@ -1147,15 +1262,14 @@ class SitemapTest extends TestCase
                 'https://example.com/kept',
                 'https://example.com/new',
             ), 200),
-            'https://example.com/kept' => Http::response('replaced', 200),
             'https://example.com/new' => Http::response('fresh', 200),
-            'https://example.com/gone' => Http::response('gone', 200),
         ]);
 
         $sitemap = Sitemap::factory()->create([
             'url' => 'https://example.com/sitemap.xml',
             'status' => SitemapStatus::Completed,
             'absence_limit' => null,
+            'crawled_at' => now()->subMinute(),
         ]);
         $kept = SitemapPage::query()->create([
             'sitemap_id' => $sitemap->id,
@@ -1183,20 +1297,25 @@ class SitemapTest extends TestCase
             ]);
 
         $kept->refresh();
-        $this->assertSame('replaced', $kept->body);
-        $this->assertSame(hash('sha256', 'replaced'), $kept->body_sha256);
-        $this->assertTrue($kept->crawled_at?->greaterThan(now()->subMinute()));
-        $this->assertSame('fresh', SitemapPage::query()->where('url', 'https://example.com/new')->firstOrFail()->body);
+        $this->assertSame('kept', $kept->body);
+        $this->assertTrue($sitemap->refresh()->crawled_at?->greaterThan(now()->subSeconds(5)));
+        $new = SitemapPage::query()->where('url', 'https://example.com/new')->firstOrFail();
+        $this->assertNull($new->crawled_at);
         $this->assertSame('gone', $gone->refresh()->body);
-        Http::assertSent(fn ($request): bool => $request->url() === 'https://example.com/kept');
-        Http::assertNotSent(fn ($request): bool => $request->url() === 'https://example.com/gone');
+        Http::assertSentCount(1);
+
+        (new CrawlDueSitemapPages(0, 3600))->run();
+
+        $this->assertSame('fresh', $new->refresh()->body);
+        $this->assertSame('kept', $kept->refresh()->body);
+        Http::assertNotSent(fn ($request): bool => in_array($request->url(), [
+            'https://example.com/kept',
+            'https://example.com/gone',
+        ], true));
     }
 
-    public function test_the_crawl_button_is_disabled_while_the_sitemap_is_crawling(): void
+    public function test_the_crawl_button_is_enabled_for_every_sitemap(): void
     {
-        $crawling = Sitemap::factory()->create([
-            'status' => SitemapStatus::Crawling,
-        ]);
         $done = Sitemap::factory()->create([
             'status' => SitemapStatus::Completed,
         ]);
@@ -1207,107 +1326,14 @@ class SitemapTest extends TestCase
             ->getContent();
 
         $this->assertIsString($html);
-        $this->assertMatchesRegularExpression(
-            '/data-url="'.preg_quote(route('manager.sitemaps.crawl', $crawling), '/').'"\s+disabled/',
-            $html,
-        );
         $this->assertDoesNotMatchRegularExpression(
             '/data-url="'.preg_quote(route('manager.sitemaps.crawl', $done), '/').'"\s+disabled/',
-            $html,
-        );
-        $this->assertMatchesRegularExpression(
-            '/data-sitemap-status class="px-3 py-2 text-\[#f53003\]">巡回中</',
             $html,
         );
         $this->assertMatchesRegularExpression(
             '/data-sitemap-status class="px-3 py-2">巡回済</',
             $html,
         );
-    }
-
-    public function test_an_immediate_crawl_ignores_a_sitemap_that_is_already_crawling(): void
-    {
-        Http::preventStrayRequests();
-        Http::fake();
-
-        $sitemap = Sitemap::factory()->create([
-            'url' => 'https://example.com/sitemap.xml',
-            'status' => SitemapStatus::Crawling,
-            'error_message' => null,
-            'recrawl_after_page_id' => 5,
-        ]);
-        $page = SitemapPage::query()->create([
-            'sitemap_id' => $sitemap->id,
-            'url' => 'https://example.com/a',
-            'body' => 'old',
-            'crawled_at' => now()->subDay(),
-        ]);
-        $sitemapUpdatedAt = $sitemap->fresh()?->updated_at;
-        $page->refresh();
-        $pageUpdatedAt = $page->updated_at;
-        $crawledAt = $page->crawled_at;
-
-        $this->actingAs(User::factory()->create())
-            ->postJson('/manager/sitemaps/'.$sitemap->id.'/crawl')
-            ->assertOk()
-            ->assertJson([
-                'status_label' => '巡回中',
-                'error_message' => null,
-                'pages_count' => 1,
-            ]);
-
-        $sitemap->refresh();
-        $page->refresh();
-        $this->assertSame(SitemapStatus::Crawling, $sitemap->status);
-        $this->assertSame(5, $sitemap->recrawl_after_page_id);
-        $this->assertNull($sitemap->error_message);
-        $this->assertTrue($sitemap->updated_at?->equalTo($sitemapUpdatedAt));
-        $this->assertSame('old', $page->body);
-        $this->assertTrue($page->crawled_at?->equalTo($crawledAt));
-        $this->assertTrue($page->updated_at?->equalTo($pageUpdatedAt));
-        Http::assertNothingSent();
-    }
-
-    public function test_an_immediate_crawl_leaves_the_rest_for_the_scheduled_crawl(): void
-    {
-        Http::preventStrayRequests();
-        Http::fake([
-            'https://example.com/sitemap.xml' => Http::response($this->urlset(
-                'https://example.com/a',
-                'https://example.com/b',
-            ), 200),
-            'https://example.com/a' => Http::response('alpha', 200),
-            'https://example.com/b' => Http::response('bravo', 200),
-        ]);
-
-        $sitemap = Sitemap::factory()->create([
-            'url' => 'https://example.com/sitemap.xml',
-            'status' => SitemapStatus::Completed,
-        ]);
-        $first = SitemapPage::query()->create([
-            'sitemap_id' => $sitemap->id,
-            'url' => 'https://example.com/a',
-            'body' => 'old-a',
-            'crawled_at' => now()->subDay(),
-        ]);
-        $second = SitemapPage::query()->create([
-            'sitemap_id' => $sitemap->id,
-            'url' => 'https://example.com/b',
-            'body' => 'old-b',
-            'crawled_at' => now()->subDay(),
-        ]);
-
-        (new CrawlDueSitemapPages(0, 0))->crawlSitemap($sitemap);
-
-        $this->assertSame('alpha', $first->refresh()->body);
-        $this->assertSame('old-b', $second->refresh()->body);
-        $this->assertTrue($second->crawled_at?->lessThan(now()->subHour()));
-        $this->assertSame(SitemapStatus::Crawling, $sitemap->refresh()->status);
-
-        (new CrawlDueSitemapPages(0, 3600))->crawlListedPages();
-
-        $this->assertSame('bravo', $second->refresh()->body);
-        $this->assertSame(SitemapStatus::Completed, $sitemap->refresh()->status);
     }
 
     public function test_an_immediate_crawl_retries_a_failed_sitemap(): void
@@ -1335,7 +1361,7 @@ class SitemapTest extends TestCase
 
         $this->assertSame(SitemapStatus::Completed, $sitemap->refresh()->status);
         $this->assertNull($sitemap->error_message);
-        $this->assertSame('alpha', SitemapPage::query()->where('url', 'https://example.com/a')->firstOrFail()->body);
+        $this->assertSame(['https://example.com/a'], $sitemap->pages()->pluck('url')->all());
     }
 
     public function test_a_page_from_another_sitemap_cannot_be_crawled_immediately(): void
@@ -1460,6 +1486,7 @@ class SitemapTest extends TestCase
             'body_sha256' => hash('sha256', 'hash-body'),
             'unlisted_at' => now()->subDay(),
             'absence_count' => 2,
+            'crawled_at' => now()->subDays(2),
         ]);
 
         $this->refreshSitemap($sitemap);
@@ -1756,16 +1783,23 @@ class SitemapTest extends TestCase
             ->assertSee('<a class="underline underline-offset-4" href="'.$listedHref.'">1</a>', false);
     }
 
-    public function test_refresh_runs_for_completed_sitemaps_only(): void
+    public function test_inspection_reads_pending_sitemaps_and_completed_sitemaps_read_a_day_ago(): void
     {
         Http::preventStrayRequests();
         Http::fake([
-            'https://example.com/done.xml' => Http::response($this->urlset('https://example.com/done'), 200),
+            'https://example.com/old.xml' => Http::response($this->urlset('https://example.com/old'), 200),
+            'https://example.com/pending.xml' => Http::response($this->urlset('https://example.com/pending'), 200),
         ]);
 
         Sitemap::factory()->create([
-            'url' => 'https://example.com/done.xml',
+            'url' => 'https://example.com/old.xml',
             'status' => SitemapStatus::Completed,
+            'crawled_at' => now()->subDay(),
+        ]);
+        Sitemap::factory()->create([
+            'url' => 'https://example.com/recent.xml',
+            'status' => SitemapStatus::Completed,
+            'crawled_at' => now()->subDay()->addMinute(),
         ]);
         Sitemap::factory()->create([
             'url' => 'https://example.com/pending.xml',
@@ -1776,133 +1810,58 @@ class SitemapTest extends TestCase
             'status' => SitemapStatus::Failed,
         ]);
 
-        $this->artisan('sitemaps:refresh')->assertSuccessful();
+        $this->artisan('sitemaps:inspect')->assertSuccessful();
 
-        Http::assertSent(fn ($request): bool => $request->url() === 'https://example.com/done.xml');
-        Http::assertNotSent(fn ($request): bool => in_array($request->url(), [
-            'https://example.com/pending.xml',
-            'https://example.com/failed.xml',
-        ], true));
+        Http::assertSentCount(2);
+        Http::assertSent(fn ($request): bool => $request->url() === 'https://example.com/old.xml');
+        Http::assertSent(fn ($request): bool => $request->url() === 'https://example.com/pending.xml');
+        $this->assertSame(0, SitemapPage::query()->whereNotNull('crawled_at')->count());
     }
 
-    public function test_sitemap_refresh_is_scheduled_daily(): void
+    public function test_a_failed_inspection_is_logged(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://example.com/sitemap.xml' => Http::response('missing', 404),
+        ]);
+
+        $sitemap = Sitemap::factory()->create([
+            'url' => 'https://example.com/sitemap.xml',
+            'status' => SitemapStatus::Pending,
+        ]);
+
+        $this->artisan('sitemaps:inspect')->assertSuccessful();
+
+        $log = CrawlErrorLog::query()->sole();
+        $this->assertSame(CrawlErrorKind::Sitemap, $log->kind);
+        $this->assertSame($sitemap->id, $log->sitemap_id);
+        $this->assertNull($log->sitemap_page_id);
+        $this->assertSame('https://example.com/sitemap.xml', $log->url);
+        $this->assertSame('sitemap.xml の取得に失敗しました（HTTP 404）。', $log->message);
+
+        $sitemap->delete();
+
+        $this->assertNull($log->refresh()->sitemap_id);
+        $this->assertSame('https://example.com/sitemap.xml', $log->url);
+    }
+
+    public function test_the_three_steps_are_scheduled(): void
     {
         $this->artisan('schedule:list')->assertSuccessful();
 
-        $event = collect(app(Schedule::class)->events())->first(
-            fn (mixed $event): bool => is_object($event)
-                && isset($event->command)
-                && is_string($event->command)
-                && str_contains($event->command, 'sitemaps:refresh'),
-        );
+        $expressions = collect(app(Schedule::class)->events())
+            ->filter(fn (mixed $event): bool => is_object($event) && isset($event->command) && is_string($event->command))
+            ->mapWithKeys(fn (object $event): array => [
+                preg_replace('/^.*artisan.? /', '', $event->command) => $event->expression,
+            ])
+            ->all();
 
-        $this->assertNotNull($event);
-        $this->assertSame('30 4 * * 1,2,3,4,5,6', $event->expression);
-
-        $recrawl = collect(app(Schedule::class)->events())->first(
-            fn (mixed $event): bool => is_object($event)
-                && isset($event->command)
-                && is_string($event->command)
-                && str_contains($event->command, 'sitemaps:recrawl'),
-        );
-
-        $this->assertNotNull($recrawl);
-        $this->assertSame('30 4 * * 0', $recrawl->expression);
-
-        $crawl = collect(app(Schedule::class)->events())->first(
-            fn (mixed $event): bool => is_object($event)
-                && isset($event->command)
-                && is_string($event->command)
-                && str_contains($event->command, 'sitemaps:crawl'),
-        );
-
-        $this->assertNotNull($crawl);
-        $this->assertSame('* * * * *', $crawl->expression);
+        $this->assertSame([
+            'sitemaps:inspect' => '0 * * * *',
+            'sitemaps:crawl' => '* * * * *',
+            'sitemaps:embed' => '* * * * *',
+        ], $expressions);
         $this->assertSame(1, CrawlDueSitemapPages::INTERVAL_SECONDS);
-    }
-
-    public function test_recrawl_rereads_completed_sitemaps_and_updates_every_listed_body(): void
-    {
-        Http::preventStrayRequests();
-        Http::fake([
-            'https://example.com/sitemap.xml' => Http::response($this->urlset('https://example.com/a', 'https://example.com/b'), 200),
-            'https://example.com/a' => Http::response('alpha new', 200),
-            'https://example.com/b' => Http::response('beta', 200),
-        ]);
-
-        $sitemap = $this->completedSitemap();
-        SitemapPage::query()->create([
-            'sitemap_id' => $sitemap->id,
-            'url' => 'https://example.com/a',
-            'body' => 'alpha old',
-            'body_sha256' => hash('sha256', 'alpha old'),
-            'http_status' => 200,
-            'crawled_at' => now()->subWeek(),
-        ]);
-        Sitemap::factory()->create([
-            'url' => 'https://example.com/pending.xml',
-            'status' => SitemapStatus::Pending,
-        ]);
-        Sitemap::factory()->create([
-            'url' => 'https://example.com/failed.xml',
-            'status' => SitemapStatus::Failed,
-        ]);
-
-        $this->artisan('sitemaps:recrawl')->assertSuccessful();
-
-        $this->assertSame(SitemapStatus::Crawling, $sitemap->refresh()->status);
-        $this->assertSame(0, $sitemap->recrawl_after_page_id);
-        $this->assertSame(1, $sitemap->pages()->whereNull('crawled_at')->count());
-        $this->assertNotNull(SitemapPage::query()->where('url', 'https://example.com/a')->firstOrFail()->crawled_at);
-        Http::assertNotSent(fn ($request): bool => in_array($request->url(), [
-            'https://example.com/a',
-            'https://example.com/pending.xml',
-            'https://example.com/failed.xml',
-        ], true));
-
-        (new CrawlDueSitemapPages(0, 3600))->crawlListedPages();
-
-        $this->assertSame(SitemapStatus::Completed, $sitemap->refresh()->status);
-        $this->assertDatabaseHas('sitemap_pages', [
-            'url' => 'https://example.com/a',
-            'body' => 'alpha new',
-            'body_sha256' => hash('sha256', 'alpha new'),
-        ]);
-        $this->assertDatabaseHas('sitemap_pages', [
-            'url' => 'https://example.com/b',
-            'body' => 'beta',
-        ]);
-        $this->assertNull($sitemap->recrawl_after_page_id);
-        $this->assertTrue(SitemapPage::query()->where('url', 'https://example.com/a')->firstOrFail()->crawled_at?->greaterThan(now()->subMinute()));
-    }
-
-    public function test_a_failed_recrawl_keeps_the_previous_body_and_crawled_at(): void
-    {
-        Http::preventStrayRequests();
-        Http::fake([
-            'https://example.com/sitemap.xml' => Http::response($this->urlset('https://example.com/a'), 200),
-            'https://example.com/a' => fn () => throw new ConnectionException('down'),
-        ]);
-
-        $sitemap = $this->completedSitemap();
-        $crawledAt = now()->subWeek()->startOfSecond();
-        $page = SitemapPage::query()->create([
-            'sitemap_id' => $sitemap->id,
-            'url' => 'https://example.com/a',
-            'body' => 'alpha old',
-            'http_status' => 200,
-            'crawled_at' => $crawledAt,
-        ]);
-
-        $this->artisan('sitemaps:recrawl')->assertSuccessful();
-        (new CrawlDueSitemapPages(0, 3600))->crawlListedPages();
-
-        $page->refresh();
-        $this->assertSame('alpha old', $page->body);
-        $this->assertSame(200, $page->http_status);
-        $this->assertSame('取得に失敗しました。', $page->error_message);
-        $this->assertTrue($crawledAt->equalTo($page->crawled_at));
-        $this->assertSame(SitemapStatus::Completed, $sitemap->refresh()->status);
     }
 
     public function test_an_immediate_crawl_returns_the_current_state_while_another_inspection_runs(): void
@@ -1928,6 +1887,39 @@ class SitemapTest extends TestCase
 
         $this->assertSame(SitemapStatus::Pending, $sitemap->refresh()->status);
         $this->assertSame(0, $sitemap->pages()->count());
+        Http::assertNothingSent();
+
+        $lock->release();
+    }
+
+    public function test_an_immediate_crawl_keeps_a_failed_sitemap_while_another_inspection_runs(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake();
+
+        $message = 'sitemap.xml の取得に失敗しました（HTTP 404）。';
+        $sitemap = Sitemap::factory()->create([
+            'url' => 'https://example.com/sitemap.xml',
+            'status' => SitemapStatus::Failed,
+            'error_message' => $message,
+        ]);
+        $updatedAt = $sitemap->fresh()?->updated_at;
+        $lock = Cache::lock(InspectSitemap::lockKey($sitemap->id), InspectSitemap::LOCK_SECONDS);
+        $this->assertTrue($lock->get());
+
+        $this->actingAs(User::factory()->create())
+            ->postJson(route('manager.sitemaps.crawl', $sitemap))
+            ->assertOk()
+            ->assertJson([
+                'status_label' => '取得失敗',
+                'error_message' => $message,
+                'pages_count' => 0,
+            ]);
+
+        $sitemap->refresh();
+        $this->assertSame(SitemapStatus::Failed, $sitemap->status);
+        $this->assertSame($message, $sitemap->error_message);
+        $this->assertTrue($sitemap->updated_at?->equalTo($updatedAt));
         Http::assertNothingSent();
 
         $lock->release();
@@ -1994,28 +1986,25 @@ class SitemapTest extends TestCase
         $this->assertDatabaseHas('sitemap_pages', ['url' => 'https://example.com/b']);
     }
 
-    public function test_refresh_does_nothing_unless_the_sitemap_is_completed(): void
+    public function test_inspection_does_nothing_for_a_failed_or_invalid_sitemap(): void
     {
         Http::preventStrayRequests();
-        Http::fake([
-            'https://example.com/sitemap.xml' => Http::response($this->urlset('https://example.com/b'), 200),
+        Http::fake();
+
+        $failed = Sitemap::factory()->create([
+            'url' => 'https://example.com/failed.xml',
+            'status' => SitemapStatus::Failed,
+        ]);
+        $invalid = Sitemap::factory()->create([
+            'url' => 'https://example.com/invalid.xml',
+            'status' => SitemapStatus::Invalid,
         ]);
 
-        $sitemap = Sitemap::factory()->create([
-            'url' => 'https://example.com/sitemap.xml',
-            'status' => SitemapStatus::Pending,
-        ]);
-        SitemapPage::query()->create([
-            'sitemap_id' => $sitemap->id,
-            'url' => 'https://example.com/a',
-            'body' => 'alpha',
-        ]);
+        (new InspectSitemap($failed->id))->handle(new SitemapUrlsetReader);
+        (new InspectSitemap($invalid->id))->handle(new SitemapUrlsetReader);
 
-        $this->refreshSitemap($sitemap);
-
-        $this->assertSame(SitemapStatus::Pending, $sitemap->refresh()->status);
-        $this->assertDatabaseHas('sitemap_pages', ['url' => 'https://example.com/a']);
-        $this->assertDatabaseMissing('sitemap_pages', ['url' => 'https://example.com/b']);
+        $this->assertSame(SitemapStatus::Failed, $failed->refresh()->status);
+        $this->assertSame(SitemapStatus::Invalid, $invalid->refresh()->status);
         Http::assertNothingSent();
     }
 
@@ -2187,12 +2176,13 @@ class SitemapTest extends TestCase
 
     private function refreshSitemap(Sitemap $sitemap): void
     {
-        (new InspectSitemap($sitemap->id, true))->handle(new SitemapUrlsetReader);
-        (new CrawlDueSitemapPages(0, 3600))->crawlListedPages();
+        (new InspectSitemap($sitemap->id))->handle(new SitemapUrlsetReader);
+        (new CrawlDueSitemapPages(0, 3600))->run();
     }
 
     private function processDueSitemaps(): void
     {
+        $this->artisan('sitemaps:inspect')->assertSuccessful();
         (new CrawlDueSitemapPages(0, 3600))->run();
     }
 

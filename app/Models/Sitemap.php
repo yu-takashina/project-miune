@@ -16,10 +16,9 @@ use Illuminate\Support\Carbon;
  * @property SitemapStatus $status
  * @property string|null $error_message
  * @property int|null $absence_limit
- * @property int|null $recrawl_after_page_id 再巡回で取り直し終えた最後のページ ID。null は再巡回中でない。
  * @property Carbon|null $crawled_at sitemap.xml を読み込めた日時。失敗したときは更新しない。
  */
-#[Fillable(['url', 'status', 'error_message', 'absence_limit', 'recrawl_after_page_id', 'crawled_at'])]
+#[Fillable(['url', 'status', 'error_message', 'absence_limit', 'crawled_at'])]
 class Sitemap extends Model
 {
     /** @use HasFactory<SitemapFactory> */
@@ -43,7 +42,6 @@ class Sitemap extends Model
         return [
             'status' => SitemapStatus::class,
             'absence_limit' => 'integer',
-            'recrawl_after_page_id' => 'integer',
             'crawled_at' => 'datetime',
         ];
     }

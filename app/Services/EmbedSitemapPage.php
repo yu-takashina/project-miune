@@ -2,7 +2,10 @@
 
 namespace App\Services;
 
+use App\Enums\CrawlErrorKind;
+use App\Models\CrawlErrorLog;
 use App\Models\SitemapPage;
+use App\Support\RetryBackoff;
 use Illuminate\Support\Facades\DB;
 use JsonException;
 
@@ -41,8 +44,18 @@ class EmbedSitemapPage
                 throw $exception;
             }
 
+            CrawlErrorLog::forPage($page, $exception->getMessage(), null, CrawlErrorKind::Embedding);
             $page->embedding_error = $exception->getMessage();
             $page->embedding_failed_sha256 = $exception->permanent ? $hash : null;
+
+            if ($exception->permanent) {
+                $page->embedding_failure_count = 0;
+                $page->embedding_retry_at = null;
+            } else {
+                $page->embedding_failure_count++;
+                $page->embedding_retry_at = RetryBackoff::nextAt($page->embedding_failure_count);
+            }
+
             $page->save();
 
             return;
@@ -53,6 +66,8 @@ class EmbedSitemapPage
             $this->storeVector($page, $vector, $hash);
             $page->embedding_error = null;
             $page->embedding_failed_sha256 = null;
+            $page->embedding_failure_count = 0;
+            $page->embedding_retry_at = null;
             $page->save();
         });
     }
