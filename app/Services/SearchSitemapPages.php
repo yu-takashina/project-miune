@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use JsonException;
 use stdClass;
@@ -47,6 +48,10 @@ class SearchSitemapPages
             ->where('sitemap_pages.searchable', true)
             ->whereNull('sitemap_pages.unlisted_at')
             ->whereNotNull('sitemap_pages.body')
+            ->where(function (Builder $query): void {
+                $query->whereNull('sitemap_pages.http_status')
+                    ->orWhere('sitemap_pages.http_status', '<>', 404);
+            })
             ->whereColumn(
                 'sitemap_page_embeddings.article_text_sha256',
                 'sitemap_pages.article_text_sha256',
@@ -133,6 +138,7 @@ class SearchSitemapPages
                 WHERE sitemap_pages.searchable = 1
                   AND sitemap_pages.unlisted_at IS NULL
                   AND sitemap_pages.body IS NOT NULL
+                  AND (sitemap_pages.http_status IS NULL OR sitemap_pages.http_status <> 404)
                   AND candidates.article_text_sha256 = sitemap_pages.article_text_sha256
                 ORDER BY candidates.distance, candidates.sitemap_page_id
             SQL,

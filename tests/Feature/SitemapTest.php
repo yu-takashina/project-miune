@@ -1420,7 +1420,7 @@ class SitemapTest extends TestCase
 
         Http::assertNotSent(fn ($request): bool => $request->url() === 'https://example.com/dropped');
         $this->assertFalse(SitemapPage::query()->forSearch()->whereKey($dropped->id)->exists());
-        $this->assertTrue(SitemapPage::query()->forSearch()->whereKey($kept->id)->exists());
+        $this->assertFalse(SitemapPage::query()->forSearch()->whereKey($kept->id)->exists());
     }
 
     public function test_a_url_absent_from_three_successful_refreshes_is_deleted(): void
@@ -1684,7 +1684,7 @@ class SitemapTest extends TestCase
         $this->assertSame('alpha', $page->body);
     }
 
-    public function test_search_includes_only_listed_searchable_pages_with_a_body(): void
+    public function test_search_includes_only_listed_searchable_pages_with_a_body_except_http_404(): void
     {
         $sitemap = Sitemap::factory()->create();
         $listed = SitemapPage::query()->create([
@@ -1692,6 +1692,19 @@ class SitemapTest extends TestCase
             'url' => 'https://example.com/listed',
             'searchable' => true,
             'body' => 'listed',
+            'http_status' => 200,
+        ]);
+        $unknown = SitemapPage::query()->create([
+            'sitemap_id' => $sitemap->id,
+            'url' => 'https://example.com/unknown',
+            'searchable' => true,
+            'body' => 'unknown',
+        ]);
+        SitemapPage::query()->create([
+            'sitemap_id' => $sitemap->id,
+            'url' => 'https://example.com/missing',
+            'searchable' => true,
+            'body' => 'missing',
             'http_status' => 404,
         ]);
         SitemapPage::query()->create([
@@ -1714,7 +1727,7 @@ class SitemapTest extends TestCase
         ]);
 
         $this->assertSame(
-            [$listed->id],
+            [$listed->id, $unknown->id],
             SitemapPage::query()->forSearch()->orderBy('id')->pluck('id')->all(),
         );
     }
