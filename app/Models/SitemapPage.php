@@ -29,7 +29,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $embedding_retry_at この日時まではベクトル化を試さない。
  * @property ExtractionStatus|null $extraction_status 本文を採用できたとき、未抽出のときは null。
  * @property Carbon|null $extracted_at
- * @property Carbon|null $crawled_at 取得できた日時。接続できなかったときは更新しない。
+ * @property Carbon|null $crawled_at 取得できた日時。接続できなかったときと HTTP 404 のときは更新しない。
  * @property string|null $error_message
  * @property int $fetch_failure_count 取得に失敗し続けた回数。取得できたら 0 に戻す。
  * @property Carbon|null $fetch_retry_at この日時までは定期の巡回で取得しない。

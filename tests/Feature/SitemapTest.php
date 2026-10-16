@@ -771,7 +771,7 @@ class SitemapTest extends TestCase
     {
         Http::preventStrayRequests();
         Http::fake([
-            'https://example.com/back' => Http::response('missing', 404),
+            'https://example.com/back' => Http::response('missing', 500),
         ]);
 
         $page = SitemapPage::query()->create([
@@ -784,10 +784,59 @@ class SitemapTest extends TestCase
         (new CrawlDueSitemapPages(0, 3600))->run();
 
         $page->refresh();
-        $this->assertSame(404, $page->http_status);
+        $this->assertSame(500, $page->http_status);
         $this->assertSame(0, $page->fetch_failure_count);
         $this->assertNull($page->fetch_retry_at);
         $this->assertNull($page->error_message);
+    }
+
+    public function test_an_http_404_is_treated_as_a_failed_fetch(): void
+    {
+        $this->freezeSecond();
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://example.com/missing' => Http::response('gone', 404),
+            'https://example.com/new' => Http::response('gone', 404),
+        ]);
+
+        $crawledAt = now()->subDays(30);
+        $page = SitemapPage::query()->create([
+            'sitemap_id' => $this->completedSitemap()->id,
+            'url' => 'https://example.com/missing',
+            'http_status' => 200,
+            'body' => 'kept',
+            'body_sha256' => hash('sha256', 'kept'),
+            'article_text' => 'kept',
+            'crawled_at' => $crawledAt,
+        ]);
+        $fresh = SitemapPage::query()->create([
+            'sitemap_id' => $page->sitemap_id,
+            'url' => 'https://example.com/new',
+        ]);
+
+        (new CrawlDueSitemapPages(0, 3600))->run();
+
+        $page->refresh();
+        $this->assertSame(200, $page->http_status);
+        $this->assertSame('kept', $page->body);
+        $this->assertSame('kept', $page->article_text);
+        $this->assertTrue($crawledAt->equalTo($page->crawled_at));
+        $this->assertSame(1, $page->fetch_failure_count);
+        $this->assertTrue(now()->addMinute()->equalTo($page->fetch_retry_at));
+        $this->assertSame('取得に失敗しました。', $page->error_message);
+        $this->assertDatabaseHas('crawl_error_logs', [
+            'kind' => CrawlErrorKind::Page->value,
+            'sitemap_page_id' => $page->id,
+            'http_status' => 404,
+            'message' => '取得に失敗しました。',
+        ]);
+
+        $fresh->refresh();
+        $this->assertNull($fresh->crawled_at);
+        $this->assertNull($fresh->http_status);
+        $this->assertNull($fresh->body);
+        $this->assertSame(1, $fresh->fetch_failure_count);
+        $this->assertSame('取得に失敗しました。', $fresh->error_message);
     }
 
     public function test_guests_cannot_view_sitemap_urls(): void
