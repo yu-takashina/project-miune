@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Manager\ApiKeyController;
 use App\Http\Controllers\Manager\SitemapController;
 use App\Http\Controllers\SearchController;
 use Illuminate\Http\RedirectResponse;
@@ -22,6 +23,9 @@ Route::middleware('auth')->group(function () {
         return redirect()->route('sitemap.index');
     })->name('manager');
     Route::get('/manager/sitemap', [SitemapController::class, 'index'])->name('sitemap.index');
+    Route::get('/manager/api-keys', [ApiKeyController::class, 'index'])->name('manager.api-keys.index');
+    Route::post('/manager/api-keys', [ApiKeyController::class, 'store'])->name('manager.api-keys.store');
+    Route::delete('/manager/api-keys/{apiKey}', [ApiKeyController::class, 'destroy'])->name('manager.api-keys.destroy');
     Route::post('/manager/sitemaps', [SitemapController::class, 'store'])->name('manager.sitemaps.store');
     Route::post('/manager/sitemaps/{sitemap}/crawl', [SitemapController::class, 'crawlNow'])->name('manager.sitemaps.crawl');
     Route::get('/manager/sitemaps/{sitemap}', [SitemapController::class, 'show'])->name('manager.sitemaps.show');

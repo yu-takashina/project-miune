@@ -62,7 +62,8 @@ tr[data-search-off="true"] > td {
     background-color: #ececea;
 }
 
-.sitemap-delete-dialog {
+.sitemap-delete-dialog,
+.api-key-delete-dialog {
     position: fixed;
     inset: 0;
     width: min(28rem, calc(100% - 2rem));
@@ -76,11 +77,13 @@ tr[data-search-off="true"] > td {
     color: #1b1b18;
 }
 
-.sitemap-delete-dialog::backdrop {
+.sitemap-delete-dialog::backdrop,
+.api-key-delete-dialog::backdrop {
     background: rgb(27 27 24 / 0.45);
 }
 
-.sitemap-delete-dialog [data-sitemap-delete-confirm]:disabled {
+.sitemap-delete-dialog [data-sitemap-delete-confirm]:disabled,
+.api-key-delete-dialog [data-api-key-delete-confirm]:disabled {
     cursor: wait;
     background-color: #c9c9c4;
     color: #706f6c;

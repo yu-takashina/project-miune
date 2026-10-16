@@ -22,10 +22,10 @@ class SearchSitemapPages
      * @param  list<float>  $vector
      * @return list<array{id: int, relevance: float}>
      */
-    public function nearest(array $vector): array
+    public function nearest(array $vector, int $limit = self::LIMIT): array
     {
         if (DB::connection()->getDriverName() === 'sqlite') {
-            return $this->nearestFromSqlite($vector);
+            return $this->nearestFromSqlite($vector, $limit);
         }
 
         try {
@@ -34,14 +34,14 @@ class SearchSitemapPages
             throw new OpenAiEmbeddingException('埋め込みの次元が不正です。', false, false, $exception);
         }
 
-        return $this->nearestFromMariaDb($encoded);
+        return $this->nearestFromMariaDb($encoded, $limit);
     }
 
     /**
      * @param  list<float>  $vector
      * @return list<array{id: int, relevance: float}>
      */
-    private function nearestFromSqlite(array $vector): array
+    private function nearestFromSqlite(array $vector, int $limit): array
     {
         $rows = DB::table('sitemap_page_embeddings')
             ->join('sitemap_pages', 'sitemap_pages.id', '=', 'sitemap_page_embeddings.sitemap_page_id')
@@ -108,7 +108,7 @@ class SearchSitemapPages
                 'relevance' => 1.0 - $row['distance'],
             ];
 
-            if (count($matches) === self::LIMIT) {
+            if (count($matches) === $limit) {
                 break;
             }
         }
@@ -119,7 +119,7 @@ class SearchSitemapPages
     /**
      * @return list<array{id: int, relevance: float}>
      */
-    private function nearestFromMariaDb(string $encoded): array
+    private function nearestFromMariaDb(string $encoded, int $limit): array
     {
         $candidates = self::CANDIDATES;
         $rows = DB::select(
@@ -165,7 +165,7 @@ class SearchSitemapPages
                 'relevance' => 1.0 - (float) $row->distance,
             ];
 
-            if (count($matches) === self::LIMIT) {
+            if (count($matches) === $limit) {
                 break;
             }
         }

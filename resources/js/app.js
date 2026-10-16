@@ -59,6 +59,38 @@ document.addEventListener('click', (event) => {
 
     if (sitemapDeleteConfirm instanceof HTMLButtonElement) {
         confirmSitemapDelete(sitemapDeleteConfirm);
+
+        return;
+    }
+
+    const apiKeyCopy = target.closest('[data-api-key-copy]');
+
+    if (apiKeyCopy instanceof HTMLButtonElement) {
+        copyApiKey(apiKeyCopy);
+
+        return;
+    }
+
+    const apiKeyDelete = target.closest('[data-api-key-delete]');
+
+    if (apiKeyDelete instanceof HTMLButtonElement) {
+        openApiKeyDelete(apiKeyDelete);
+
+        return;
+    }
+
+    const apiKeyDeleteCancel = target.closest('[data-api-key-delete-cancel]');
+
+    if (apiKeyDeleteCancel instanceof HTMLButtonElement) {
+        closeApiKeyDelete();
+
+        return;
+    }
+
+    const apiKeyDeleteConfirm = target.closest('[data-api-key-delete-confirm]');
+
+    if (apiKeyDeleteConfirm instanceof HTMLButtonElement) {
+        confirmApiKeyDelete(apiKeyDeleteConfirm);
     }
 });
 
@@ -481,6 +513,82 @@ document.addEventListener('cancel', (event) => {
 document.querySelector('[data-sitemap-delete-dialog]')?.addEventListener('click', (event) => {
     if (event.target instanceof HTMLDialogElement && event.target.matches('[data-sitemap-delete-dialog]')) {
         closeSitemapDelete();
+    }
+});
+
+function copyApiKey(button) {
+    const token = button.dataset.apiKeyToken ?? '';
+
+    if (token === '' || navigator.clipboard === undefined) {
+        return;
+    }
+
+    navigator.clipboard.writeText(token).catch(() => {});
+}
+
+let apiKeyDeleteForm = null;
+
+function openApiKeyDelete(button) {
+    const form = button.closest('form');
+    const dialog = document.querySelector('[data-api-key-delete-dialog]');
+
+    if (! (form instanceof HTMLFormElement) || ! (dialog instanceof HTMLDialogElement) || dialog.open) {
+        return;
+    }
+
+    apiKeyDeleteForm = form;
+
+    const token = dialog.querySelector('[data-api-key-delete-token]');
+
+    if (token instanceof HTMLElement) {
+        token.textContent = button.dataset.apiKeyToken ?? '';
+    }
+
+    const confirm = dialog.querySelector('[data-api-key-delete-confirm]');
+
+    if (confirm instanceof HTMLButtonElement) {
+        confirm.disabled = false;
+    }
+
+    dialog.showModal();
+
+    const cancel = dialog.querySelector('[data-api-key-delete-cancel]');
+
+    if (cancel instanceof HTMLButtonElement) {
+        cancel.focus();
+    }
+}
+
+function closeApiKeyDelete() {
+    const dialog = document.querySelector('[data-api-key-delete-dialog]');
+
+    if (dialog instanceof HTMLDialogElement && dialog.open) {
+        dialog.close();
+    }
+
+    apiKeyDeleteForm = null;
+}
+
+function confirmApiKeyDelete(button) {
+    const form = apiKeyDeleteForm;
+
+    if (! (form instanceof HTMLFormElement) || button.disabled) {
+        return;
+    }
+
+    button.disabled = true;
+    form.submit();
+}
+
+document.addEventListener('cancel', (event) => {
+    if (event.target instanceof HTMLDialogElement && event.target.matches('[data-api-key-delete-dialog]')) {
+        apiKeyDeleteForm = null;
+    }
+}, true);
+
+document.querySelector('[data-api-key-delete-dialog]')?.addEventListener('click', (event) => {
+    if (event.target instanceof HTMLDialogElement && event.target.matches('[data-api-key-delete-dialog]')) {
+        closeApiKeyDelete();
     }
 });
 
