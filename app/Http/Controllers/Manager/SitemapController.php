@@ -66,10 +66,15 @@ class SitemapController extends Controller
     {
         $query = $request->string('q')->trim()->toString();
         $searchable = $request->string('searchable')->toString();
+        $status = $request->string('status')->toString();
         [$sort, $order] = $this->listSort($request);
 
         if (! in_array($searchable, ['0', '1'], true)) {
             $searchable = '';
+        }
+
+        if (! in_array($status, ['200', '404', 'other'], true)) {
+            $status = '';
         }
 
         $pages = $sitemap->pages()
@@ -78,6 +83,16 @@ class SitemapController extends Controller
             })
             ->when($searchable !== '', function (Builder $builder) use ($searchable): void {
                 $builder->where('searchable', $searchable === '1');
+            })
+            ->when($status === '200', function (Builder $builder): void {
+                $builder->where('http_status', 200);
+            })
+            ->when($status === '404', function (Builder $builder): void {
+                $builder->where('http_status', 404);
+            })
+            ->when($status === 'other', function (Builder $builder): void {
+                $builder->whereNotNull('http_status')
+                    ->whereNotIn('http_status', [200, 404]);
             });
 
         match ($sort.':'.$order) {
@@ -105,11 +120,16 @@ class SitemapController extends Controller
             $filters['searchable'] = $searchable;
         }
 
+        if ($status !== '') {
+            $filters['status'] = $status;
+        }
+
         return view('manager.sitemaps.show', [
             'sitemap' => $sitemap,
             'pages' => $pages,
             'query' => $query,
             'searchable' => $searchable,
+            'status' => $status,
             'sort' => $sort,
             'order' => $order,
             'filters' => $filters,

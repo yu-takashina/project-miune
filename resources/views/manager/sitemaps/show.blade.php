@@ -53,12 +53,25 @@
                         <option value="0" @selected($searchable === '0')>OFF</option>
                     </select>
                 </div>
+                <div>
+                    <label class="block text-sm" for="status">ステータス</label>
+                    <select
+                        id="status"
+                        class="mt-1 rounded-sm border border-[#e3e3e0] bg-white px-3 py-2 text-sm"
+                        name="status"
+                    >
+                        <option value="" @selected($status === '')>全て</option>
+                        <option value="200" @selected($status === '200')>200</option>
+                        <option value="404" @selected($status === '404')>404</option>
+                        <option value="other" @selected($status === 'other')>その他</option>
+                    </select>
+                </div>
                 <button class="shrink-0 rounded-sm bg-[#1b1b18] px-4 py-2 text-sm text-white" type="submit">検索</button>
             </div>
         </form>
 
         @if ($pages->isEmpty())
-            <p class="mt-8 text-sm">{{ $query === '' && $searchable === '' ? '掲載されている URL はありません。' : '一致する URL はありません。' }}</p>
+            <p class="mt-8 text-sm">{{ $query === '' && $searchable === '' && $status === '' ? '掲載されている URL はありません。' : '一致する URL はありません。' }}</p>
         @else
             <div class="mt-8 overflow-x-auto">
                 <table class="w-full border-collapse text-left text-sm" data-csrf="{{ csrf_token() }}">

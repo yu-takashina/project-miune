@@ -962,6 +962,85 @@ class SitemapTest extends TestCase
             ->assertSee('一致する URL はありません。');
     }
 
+    public function test_the_url_list_can_be_filtered_by_http_status(): void
+    {
+        $sitemap = Sitemap::factory()->create();
+        SitemapPage::query()->create([
+            'sitemap_id' => $sitemap->id,
+            'url' => 'https://example.com/ok',
+            'http_status' => 200,
+        ]);
+        SitemapPage::query()->create([
+            'sitemap_id' => $sitemap->id,
+            'url' => 'https://example.com/missing',
+            'http_status' => 404,
+        ]);
+        SitemapPage::query()->create([
+            'sitemap_id' => $sitemap->id,
+            'url' => 'https://example.com/moved',
+            'http_status' => 301,
+        ]);
+        SitemapPage::query()->create([
+            'sitemap_id' => $sitemap->id,
+            'url' => 'https://example.com/unknown',
+        ]);
+
+        $user = User::factory()->create();
+        $base = '/manager/sitemaps/'.$sitemap->id;
+
+        $this->actingAs($user)
+            ->get($base.'?status=200')
+            ->assertOk()
+            ->assertSee('https://example.com/ok')
+            ->assertDontSee('https://example.com/missing')
+            ->assertDontSee('https://example.com/moved')
+            ->assertDontSee('https://example.com/unknown')
+            ->assertSee('value="200" selected', false);
+
+        $this->actingAs($user)
+            ->get($base.'?status=404')
+            ->assertOk()
+            ->assertSee('https://example.com/missing')
+            ->assertDontSee('https://example.com/ok')
+            ->assertDontSee('https://example.com/moved')
+            ->assertDontSee('https://example.com/unknown');
+
+        $this->actingAs($user)
+            ->get($base.'?status=other')
+            ->assertOk()
+            ->assertSee('https://example.com/moved')
+            ->assertDontSee('https://example.com/ok')
+            ->assertDontSee('https://example.com/missing')
+            ->assertDontSee('https://example.com/unknown')
+            ->assertSee('value="other" selected', false);
+
+        $this->actingAs($user)
+            ->get($base)
+            ->assertOk()
+            ->assertSee('https://example.com/ok')
+            ->assertSee('https://example.com/missing')
+            ->assertSee('https://example.com/moved')
+            ->assertSee('https://example.com/unknown')
+            ->assertSee('>全て</option>', false);
+
+        $this->actingAs($user)
+            ->get($base.'?status=500')
+            ->assertOk()
+            ->assertSee('https://example.com/ok')
+            ->assertSee('https://example.com/unknown');
+
+        $this->actingAs($user)
+            ->get($base.'?status=other&q=absent')
+            ->assertOk()
+            ->assertSee('一致する URL はありません。')
+            ->assertDontSee('https://example.com/moved');
+
+        $this->actingAs($user)
+            ->get($base.'?status=200&sort=url&order=desc')
+            ->assertOk()
+            ->assertSee('status=200', false);
+    }
+
     public function test_the_url_list_can_be_sorted_by_url_size_and_crawled_at(): void
     {
         $sitemap = Sitemap::factory()->create();
