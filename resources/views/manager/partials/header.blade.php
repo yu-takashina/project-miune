@@ -6,6 +6,11 @@
                 href="{{ route('sitemap.index') }}"
                 @if (request()->routeIs('sitemap.index')) aria-current="page" @endif
             >サイトマップ</a>
+            <a
+                class="underline underline-offset-4"
+                href="{{ route('manager.api-keys.index') }}"
+                @if (request()->routeIs('manager.api-keys.index')) aria-current="page" @endif
+            >APIキー</a>
         </nav>
         <div class="ml-auto flex items-center gap-4">
             @include('partials.search-box', ['id' => 'header-search'])
