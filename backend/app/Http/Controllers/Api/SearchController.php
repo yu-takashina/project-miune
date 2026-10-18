@@ -9,13 +9,25 @@ use App\Models\ApiKey;
 use App\Models\SitemapPage;
 use App\Services\OpenAiEmbeddingException;
 use App\Services\RememberSearchTerm;
+use App\Services\SearchEmbeddingLimited;
 use App\Services\SearchSitemapPages;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 
 class SearchController extends Controller
 {
     public const LIMIT = 10;
+
+    /** 検索API全体で、新規の検索語をベクトル化できる回数。 */
+    public const EMBEDDINGS_PER_MINUTE = 60;
+
+    /** ベクトル化の上限を超えたあとの、本文の部分一致の回数。 */
+    public const TEXT_SEARCHES_PER_MINUTE = 60;
+
+    public const EMBEDDING_LIMIT_KEY = 'api-search-embedding';
+
+    public const TEXT_LIMIT_KEY = 'api-search-text';
 
     public function __invoke(Request $request, RememberSearchTerm $terms, SearchSitemapPages $search): JsonResponse
     {
@@ -42,7 +54,21 @@ class SearchController extends Controller
         }
 
         try {
-            $matches = $search->nearest($terms->vector($query), self::LIMIT);
+            $vector = $terms->vector(
+                $query,
+                fn (): bool => $this->take(self::EMBEDDING_LIMIT_KEY, self::EMBEDDINGS_PER_MINUTE),
+            );
+            $ids = [];
+
+            foreach ($search->nearest($vector, self::LIMIT) as $match) {
+                $ids[] = $match['id'];
+            }
+        } catch (SearchEmbeddingLimited) {
+            if (! $this->take(self::TEXT_LIMIT_KEY, self::TEXT_SEARCHES_PER_MINUTE)) {
+                return $this->tooManyRequests();
+            }
+
+            $ids = $search->containing($query, self::LIMIT);
         } catch (OpenAiEmbeddingException $exception) {
             return response()->json([
                 'message' => $exception->getMessage(),
@@ -51,24 +77,39 @@ class SearchController extends Controller
 
         $apiKey->markUsed();
 
-        return response()->json($this->results($matches));
+        return response()->json($this->results($ids));
     }
 
     /**
-     * @param  list<array{id: int, relevance: float}>  $matches
+     * 判定と加算を分けると、同時に来た別の検索語が上限をすり抜ける。先に足した回数で決める。
+     */
+    private function take(string $key, int $maximum): bool
+    {
+        return RateLimiter::increment($key) <= $maximum;
+    }
+
+    private function tooManyRequests(): JsonResponse
+    {
+        return response()->json([
+            'message' => 'リクエストが多すぎます。',
+        ], 429)->header('Retry-After', (string) RateLimiter::availableIn(self::TEXT_LIMIT_KEY));
+    }
+
+    /**
+     * @param  list<int>  $ids
      * @return list<array{url: string, article_text: string|null}>
      */
-    private function results(array $matches): array
+    private function results(array $ids): array
     {
-        if ($matches === []) {
+        if ($ids === []) {
             return [];
         }
 
-        $pages = SitemapPage::query()->whereIn('id', array_column($matches, 'id'))->get()->keyBy('id');
+        $pages = SitemapPage::query()->whereIn('id', $ids)->get()->keyBy('id');
         $results = [];
 
-        foreach ($matches as $match) {
-            $page = $pages->get($match['id']);
+        foreach ($ids as $id) {
+            $page = $pages->get($id);
 
             if (! $page instanceof SitemapPage) {
                 continue;

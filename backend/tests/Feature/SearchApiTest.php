@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Api\SearchController;
 use App\Models\ApiKey;
 use App\Models\SearchTerm;
 use App\Models\Sitemap;
@@ -12,6 +13,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\RateLimiter;
 use Tests\TestCase;
 
 class SearchApiTest extends TestCase
@@ -189,19 +191,197 @@ class SearchApiTest extends TestCase
         $this->assertNull($this->apiKey->refresh()->last_used_at);
     }
 
-    public function test_searches_are_limited_per_api_key(): void
+    public function test_invalid_queries_do_not_use_the_embedding_limit(): void
     {
-        $other = ApiKey::factory()->create();
+        $this->fakeEmbedding($this->vector(1.0));
 
-        for ($index = 0; $index < 60; $index++) {
+        for ($index = 0; $index < 61; $index++) {
             $this->getJson('/api/search')->assertStatus(422);
         }
 
-        $this->getJson('/api/search')->assertStatus(429);
+        $this->getJson('/api/search?q=梅雨')->assertOk();
+
+        $this->assertSame(1, $this->embeddingCalls());
+    }
+
+    public function test_a_stored_term_ignores_the_limits(): void
+    {
+        $sitemap = Sitemap::factory()->create();
+        $page = $this->page($sitemap, 'https://example.com/rain', [
+            'article_text' => '梅雨の話',
+        ]);
+        $this->insertEmbedding($page, $this->vector(1.0));
+        $this->fakeEmbedding($this->vector(1.0));
+
+        $this->getJson('/api/search?q=梅雨')->assertOk();
+        $this->fillLimit(SearchController::EMBEDDING_LIMIT_KEY, SearchController::EMBEDDINGS_PER_MINUTE);
+        $this->fillLimit(SearchController::TEXT_LIMIT_KEY, SearchController::TEXT_SEARCHES_PER_MINUTE);
+
+        $this->getJson('/api/search?q=梅雨')
+            ->assertOk()
+            ->assertExactJson([
+                ['url' => 'https://example.com/rain', 'article_text' => '梅雨の話'],
+            ]);
+
+        $this->assertSame(1, $this->embeddingCalls());
+    }
+
+    public function test_the_next_new_term_after_the_embedding_limit_searches_article_text(): void
+    {
+        $sitemap = Sitemap::factory()->create();
+        $page = $this->page($sitemap, 'https://example.com/rain', [
+            'article_text' => '今日は梅雨です',
+        ]);
+        $this->insertEmbedding($page, $this->vector(1.0));
+        $this->fakeEmbedding($this->vector(1.0));
+        $this->fillLimit(SearchController::EMBEDDING_LIMIT_KEY, SearchController::EMBEDDINGS_PER_MINUTE - 1);
+
+        $this->getJson('/api/search?q=一')->assertOk();
+
+        $this->assertSame(1, $this->embeddingCalls());
+        $this->assertSame(1, SearchTerm::query()->count());
+
+        $other = ApiKey::factory()->create();
 
         $this->withToken($other->token)
-            ->getJson('/api/search')
-            ->assertStatus(422);
+            ->getJson('/api/search?q=梅雨')
+            ->assertOk()
+            ->assertExactJson([
+                ['url' => 'https://example.com/rain', 'article_text' => '今日は梅雨です'],
+            ]);
+        $this->withToken($other->token)
+            ->getJson('/api/search?q=梅雨')
+            ->assertOk()
+            ->assertExactJson([
+                ['url' => 'https://example.com/rain', 'article_text' => '今日は梅雨です'],
+            ]);
+
+        $this->assertSame(1, $this->embeddingCalls());
+        $this->assertSame(1, SearchTerm::query()->count());
+        $this->assertNotNull($other->refresh()->last_used_at);
+    }
+
+    public function test_text_search_uses_the_same_page_filters(): void
+    {
+        $sitemap = Sitemap::factory()->create();
+        $this->page($sitemap, 'https://example.com/rain', [
+            'article_text' => '今日は梅雨です',
+        ]);
+        $this->page($sitemap, 'https://example.com/unknown', [
+            'article_text' => '梅雨明け',
+            'http_status' => null,
+        ]);
+        $this->page($sitemap, 'https://example.com/sun', [
+            'article_text' => '快晴',
+        ]);
+        $this->page($sitemap, 'https://example.com/hidden', [
+            'article_text' => '梅雨の非公開',
+            'searchable' => false,
+        ]);
+        $this->page($sitemap, 'https://example.com/unlisted', [
+            'article_text' => '梅雨の掲載終了',
+            'unlisted_at' => '2026-04-02 00:00:00',
+        ]);
+        $this->page($sitemap, 'https://example.com/missing', [
+            'article_text' => '梅雨の不明',
+            'http_status' => 404,
+        ]);
+        $this->page($sitemap, 'https://example.com/nobody', [
+            'article_text' => '梅雨の本文なし',
+            'body' => null,
+            'body_sha256' => null,
+        ]);
+        $this->page(Sitemap::factory()->create(), 'https://example.com/rain', [
+            'article_text' => '別サイトの梅雨',
+        ]);
+        $this->fakeEmbedding($this->vector(1.0));
+        $this->fillLimit(SearchController::EMBEDDING_LIMIT_KEY, SearchController::EMBEDDINGS_PER_MINUTE);
+
+        $this->getJson('/api/search?q=梅雨')
+            ->assertOk()
+            ->assertExactJson([
+                ['url' => 'https://example.com/rain', 'article_text' => '今日は梅雨です'],
+                ['url' => 'https://example.com/unknown', 'article_text' => '梅雨明け'],
+            ]);
+
+        $this->assertSame(0, $this->embeddingCalls());
+        $this->assertSame(0, SearchTerm::query()->count());
+    }
+
+    public function test_text_search_matches_the_literal_term(): void
+    {
+        $sitemap = Sitemap::factory()->create();
+        $this->page($sitemap, 'https://example.com/literal', [
+            'article_text' => '価格は100%_offです',
+        ]);
+        $this->page($sitemap, 'https://example.com/wild', [
+            'article_text' => '価格は100aboffです',
+        ]);
+        $this->page($sitemap, 'https://example.com/slash', [
+            'article_text' => 'path\\to',
+        ]);
+        $this->page($sitemap, 'https://example.com/slash-wild', [
+            'article_text' => 'pathXto',
+        ]);
+        $this->fakeEmbedding($this->vector(1.0));
+        $this->fillLimit(SearchController::EMBEDDING_LIMIT_KEY, SearchController::EMBEDDINGS_PER_MINUTE);
+
+        $this->getJson('/api/search?q='.urlencode('100%_off'))
+            ->assertOk()
+            ->assertExactJson([
+                ['url' => 'https://example.com/literal', 'article_text' => '価格は100%_offです'],
+            ]);
+
+        $this->getJson('/api/search?q='.urlencode('path\\to'))
+            ->assertOk()
+            ->assertExactJson([
+                ['url' => 'https://example.com/slash', 'article_text' => 'path\\to'],
+            ]);
+
+        $this->assertSame(0, $this->embeddingCalls());
+    }
+
+    public function test_text_search_returns_ten_pages_in_id_order(): void
+    {
+        $sitemap = Sitemap::factory()->create();
+        $expected = [];
+
+        for ($index = 1; $index <= 11; $index++) {
+            $url = 'https://example.com/page-'.$index;
+            $this->page($sitemap, $url, [
+                'article_text' => '梅雨 '.$index,
+            ]);
+
+            if ($index <= SearchController::LIMIT) {
+                $expected[] = ['url' => $url, 'article_text' => '梅雨 '.$index];
+            }
+        }
+
+        $this->fakeEmbedding($this->vector(1.0));
+        $this->fillLimit(SearchController::EMBEDDING_LIMIT_KEY, SearchController::EMBEDDINGS_PER_MINUTE);
+
+        $this->getJson('/api/search?q=梅雨')
+            ->assertOk()
+            ->assertExactJson($expected);
+    }
+
+    public function test_text_search_stops_when_its_limit_is_reached(): void
+    {
+        $this->page(Sitemap::factory()->create(), 'https://example.com/rain', [
+            'article_text' => '梅雨の話',
+        ]);
+        $this->fakeEmbedding($this->vector(1.0));
+        $this->fillLimit(SearchController::EMBEDDING_LIMIT_KEY, SearchController::EMBEDDINGS_PER_MINUTE);
+        $this->fillLimit(SearchController::TEXT_LIMIT_KEY, SearchController::TEXT_SEARCHES_PER_MINUTE);
+
+        $this->getJson('/api/search?q=新しい語')
+            ->assertStatus(429)
+            ->assertExactJson(['message' => 'リクエストが多すぎます。'])
+            ->assertHeader('Retry-After');
+
+        $this->assertSame(0, $this->embeddingCalls());
+        $this->assertSame(0, SearchTerm::query()->count());
+        $this->assertNull($this->apiKey->refresh()->last_used_at);
     }
 
     public function test_the_api_does_not_start_a_session(): void
@@ -246,6 +426,7 @@ class SearchApiTest extends TestCase
             'url' => $url,
             'searchable' => true,
             'body' => '本文',
+            'body_sha256' => hash('sha256', '本文'),
             'article_text' => '採用本文 '.$url,
             'http_status' => 200,
             'response_bytes' => 128,
@@ -290,6 +471,11 @@ class SearchApiTest extends TestCase
                 ],
             ]),
         ]);
+    }
+
+    private function fillLimit(string $key, int $amount): void
+    {
+        RateLimiter::increment($key, 60, $amount);
     }
 
     private function embeddingCalls(): int

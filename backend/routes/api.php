@@ -5,5 +5,5 @@ use App\Http\Middleware\AuthenticateApiKey;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/search', SearchController::class)
-    ->middleware([AuthenticateApiKey::class, 'throttle:api-key'])
+    ->middleware(AuthenticateApiKey::class)
     ->name('api.search');

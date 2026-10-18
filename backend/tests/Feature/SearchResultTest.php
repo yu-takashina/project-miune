@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Api\SearchController as ApiSearchController;
 use App\Models\SearchTerm;
 use App\Models\Sitemap;
 use App\Models\SitemapPage;
@@ -11,6 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\RateLimiter;
 use Tests\TestCase;
 
 class SearchResultTest extends TestCase
@@ -124,6 +126,21 @@ class SearchResultTest extends TestCase
         $this->get('/manager/search')->assertStatus(429);
     }
 
+    public function test_manager_search_embeds_when_the_api_limit_is_exhausted(): void
+    {
+        $this->fakeEmbedding($this->vector(1.0));
+        RateLimiter::increment(
+            ApiSearchController::EMBEDDING_LIMIT_KEY,
+            60,
+            ApiSearchController::EMBEDDINGS_PER_MINUTE,
+        );
+
+        $this->get('/manager/search?q=梅雨')->assertOk();
+
+        $this->assertSame(1, $this->embeddingCalls());
+        $this->assertSame(1, SearchTerm::query()->count());
+    }
+
     public function test_an_empty_query_does_not_embed(): void
     {
         $this->get('/manager/search?q=%20%20')
@@ -189,6 +206,61 @@ class SearchResultTest extends TestCase
             ->assertDontSee('https://example.com/stale')
             ->assertDontSee('https://example.com/empty')
             ->assertDontSee('https://example.com/missing');
+    }
+
+    public function test_the_same_url_on_another_sitemap_is_shown_once(): void
+    {
+        $first = Sitemap::factory()->create();
+        $second = Sitemap::factory()->create();
+        $weaker = $this->page($first, 'https://example.com/shared');
+        $closer = $this->page($second, 'https://example.com/shared');
+        $other = $this->page($first, 'https://example.com/other');
+        $this->insertEmbedding($weaker, $this->vector(0.0, 1.0));
+        $this->insertEmbedding($closer, $this->vector(1.0));
+        $this->insertEmbedding($other, $this->vector(0.0, 1.0));
+        $this->fakeEmbedding($this->vector(1.0));
+
+        $content = $this->get('/manager/search?q=同一')->assertOk()->getContent();
+
+        $this->assertIsString($content);
+        $this->assertSame(1, substr_count($content, 'break-all">https://example.com/shared</span>'));
+        $this->assertSame(1, substr_count($content, 'break-all">https://example.com/other</span>'));
+        $this->assertLessThan(
+            strpos($content, 'break-all">https://example.com/other</span>'),
+            strpos($content, 'break-all">https://example.com/shared</span>'),
+        );
+        $this->assertLessThan(
+            strpos($content, 'break-all">https://example.com/other</span>'),
+            strpos($content, '>1.00</td>'),
+        );
+    }
+
+    public function test_a_repeated_url_does_not_take_the_place_of_another_page(): void
+    {
+        $first = Sitemap::factory()->create();
+        $second = Sitemap::factory()->create();
+        $vector = $this->vector(1.0);
+        $urls = [];
+
+        for ($index = 1; $index <= 19; $index++) {
+            $url = 'https://example.com/page-'.$index;
+            $this->insertEmbedding($this->page($first, $url), $vector);
+            $urls[] = $url;
+        }
+
+        $this->insertEmbedding($this->page($second, $urls[0]), $vector);
+        $tail = 'https://example.com/page-20';
+        $this->insertEmbedding($this->page($first, $tail), $vector);
+        $this->fakeEmbedding($vector);
+
+        $content = $this->get('/manager/search?q=枠')->assertOk()->getContent();
+        $this->assertIsString($content);
+
+        foreach ($urls as $url) {
+            $this->assertSame(1, substr_count($content, 'break-all">'.$url.'</span>'));
+        }
+
+        $this->assertSame(1, substr_count($content, 'break-all">'.$tail.'</span>'));
     }
 
     public function test_duplicate_embeddings_for_one_page_are_shown_once(): void

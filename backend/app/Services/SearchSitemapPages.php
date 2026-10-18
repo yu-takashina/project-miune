@@ -12,7 +12,7 @@ class SearchSitemapPages
     public const LIMIT = 20;
 
     /**
-     * ベクトル索引から先に取る件数。検索対象外や古いベクトルを除いた残りを出すので、LIMIT に届かないことがある。
+     * ベクトル索引から先に取る件数。検索対象外、古いベクトル、同じ URL を除いた残りを出すので、LIMIT に届かないことがある。
      */
     public const CANDIDATES = 100;
 
@@ -59,13 +59,16 @@ class SearchSitemapPages
             ->get([
                 'sitemap_page_embeddings.sitemap_page_id as page_id',
                 'sitemap_page_embeddings.embedding',
+                'sitemap_pages.url as url',
             ]);
 
-        /** @var array<int, float> $best */
+        /** @var array<int, array{distance: float, url: string}> $best */
         $best = [];
 
         foreach ($rows as $row) {
-            if (! is_numeric($row->page_id)) {
+            $url = $row->url;
+
+            if (! is_numeric($row->page_id) || ! is_string($url) || $url === '') {
                 continue;
             }
 
@@ -78,16 +81,19 @@ class SearchSitemapPages
             $id = (int) $row->page_id;
             $distance = $this->cosineDistance($vector, $stored);
 
-            if (! isset($best[$id]) || $distance < $best[$id]) {
-                $best[$id] = $distance;
+            if (! isset($best[$id]) || $distance < $best[$id]['distance']) {
+                $best[$id] = [
+                    'distance' => $distance,
+                    'url' => $url,
+                ];
             }
         }
 
-        /** @var list<array{id: int, distance: float}> $ranked */
+        /** @var list<array{id: int, distance: float, url: string}> $ranked */
         $ranked = [];
 
-        foreach ($best as $id => $distance) {
-            $ranked[] = ['id' => $id, 'distance' => $distance];
+        foreach ($best as $id => $row) {
+            $ranked[] = ['id' => $id, 'distance' => $row['distance'], 'url' => $row['url']];
         }
 
         usort($ranked, function (array $left, array $right): int {
@@ -101,8 +107,15 @@ class SearchSitemapPages
         });
 
         $matches = [];
+        /** @var array<string, true> $seenUrls */
+        $seenUrls = [];
 
         foreach ($ranked as $row) {
+            if (isset($seenUrls[$row['url']])) {
+                continue;
+            }
+
+            $seenUrls[$row['url']] = true;
             $matches[] = [
                 'id' => $row['id'],
                 'relevance' => 1.0 - $row['distance'],
@@ -124,7 +137,10 @@ class SearchSitemapPages
         $candidates = self::CANDIDATES;
         $rows = DB::select(
             <<<SQL
-                SELECT candidates.sitemap_page_id AS page_id, candidates.distance AS distance
+                SELECT
+                    candidates.sitemap_page_id AS page_id,
+                    candidates.distance AS distance,
+                    sitemap_pages.url AS url
                 FROM (
                     SELECT
                         sitemap_page_id,
@@ -146,20 +162,30 @@ class SearchSitemapPages
         );
 
         $matches = [];
-        $seen = [];
+        /** @var array<int, true> $seenPages */
+        $seenPages = [];
+        /** @var array<string, true> $seenUrls */
+        $seenUrls = [];
 
         foreach ($rows as $row) {
             if (! $row instanceof stdClass || ! is_numeric($row->page_id ?? null) || ! is_numeric($row->distance ?? null)) {
                 continue;
             }
 
-            $id = (int) $row->page_id;
+            $url = $row->url;
 
-            if (isset($seen[$id])) {
+            if (! is_string($url) || $url === '') {
                 continue;
             }
 
-            $seen[$id] = true;
+            $id = (int) $row->page_id;
+
+            if (isset($seenPages[$id]) || isset($seenUrls[$url])) {
+                continue;
+            }
+
+            $seenPages[$id] = true;
+            $seenUrls[$url] = true;
             $matches[] = [
                 'id' => $id,
                 'relevance' => 1.0 - (float) $row->distance,
@@ -171,6 +197,49 @@ class SearchSitemapPages
         }
 
         return $matches;
+    }
+
+    /**
+     * 本文に検索語がそのまま含まれるページ。ベクトルの近傍ではない。
+     * 全件を走査するので、HTML 全体を持つ body ではなく、一緒に保存する body_sha256 で本文の有無を見る。
+     *
+     * @return list<int>
+     */
+    public function containing(string $term, int $limit = self::LIMIT): array
+    {
+        $pattern = '%'.$this->escapeLike($term).'%';
+        $rows = DB::table('sitemap_pages')
+            ->selectRaw('MIN(sitemap_pages.id) as page_id')
+            ->where('sitemap_pages.searchable', true)
+            ->whereNull('sitemap_pages.unlisted_at')
+            ->whereNotNull('sitemap_pages.body_sha256')
+            ->where(function (Builder $query): void {
+                $query->whereNull('sitemap_pages.http_status')
+                    ->orWhere('sitemap_pages.http_status', '<>', 404);
+            })
+            ->whereNotNull('sitemap_pages.article_text')
+            ->whereRaw('sitemap_pages.article_text LIKE ? ESCAPE ?', [$pattern, '\\'])
+            ->groupBy('sitemap_pages.url')
+            ->orderByRaw('MIN(sitemap_pages.id)')
+            ->limit($limit)
+            ->get();
+
+        $ids = [];
+
+        foreach ($rows as $row) {
+            if (! is_numeric($row->page_id)) {
+                continue;
+            }
+
+            $ids[] = (int) $row->page_id;
+        }
+
+        return $ids;
+    }
+
+    private function escapeLike(string $term): string
+    {
+        return addcslashes($term, '\\%_');
     }
 
     /**
