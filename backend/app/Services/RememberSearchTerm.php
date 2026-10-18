@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use Closure;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\QueryException;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -18,9 +19,13 @@ class RememberSearchTerm
     public function __construct(private OpenAiEmbeddings $embeddings = new OpenAiEmbeddings) {}
 
     /**
+     * 保存済みのベクトルがあればそれを返す。無いときだけ埋め込み API を呼ぶ。
+     * $allowEmbed が false を返したときは API を呼ばず、SearchEmbeddingLimited を投げる。
+     *
+     * @param  (Closure(): bool)|null  $allowEmbed
      * @return list<float>
      */
-    public function vector(string $term): array
+    public function vector(string $term, ?Closure $allowEmbed = null): array
     {
         $term = trim($term);
 
@@ -45,21 +50,26 @@ class RememberSearchTerm
         }
 
         try {
-            return $this->resolve($term, $hash, $model);
+            return $this->resolve($term, $hash, $model, $allowEmbed);
         } finally {
             $lock->release();
         }
     }
 
     /**
+     * @param  (Closure(): bool)|null  $allowEmbed
      * @return list<float>
      */
-    private function resolve(string $term, string $hash, string $model): array
+    private function resolve(string $term, string $hash, string $model, ?Closure $allowEmbed): array
     {
         $stored = $this->find($hash, $model);
 
         if ($stored !== null) {
             return $stored;
+        }
+
+        if ($allowEmbed !== null && ! $allowEmbed()) {
+            throw new SearchEmbeddingLimited;
         }
 
         $vector = $this->embeddings->embed($term);

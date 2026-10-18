@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Api\SearchController as ApiSearchController;
 use App\Models\SearchTerm;
 use App\Models\Sitemap;
 use App\Models\SitemapPage;
@@ -11,6 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\RateLimiter;
 use Tests\TestCase;
 
 class SearchResultTest extends TestCase
@@ -122,6 +124,21 @@ class SearchResultTest extends TestCase
         }
 
         $this->get('/manager/search')->assertStatus(429);
+    }
+
+    public function test_manager_search_embeds_when_the_api_limit_is_exhausted(): void
+    {
+        $this->fakeEmbedding($this->vector(1.0));
+        RateLimiter::increment(
+            ApiSearchController::EMBEDDING_LIMIT_KEY,
+            60,
+            ApiSearchController::EMBEDDINGS_PER_MINUTE,
+        );
+
+        $this->get('/manager/search?q=梅雨')->assertOk();
+
+        $this->assertSame(1, $this->embeddingCalls());
+        $this->assertSame(1, SearchTerm::query()->count());
     }
 
     public function test_an_empty_query_does_not_embed(): void

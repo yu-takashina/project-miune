@@ -200,6 +200,49 @@ class SearchSitemapPages
     }
 
     /**
+     * 本文に検索語がそのまま含まれるページ。ベクトルの近傍ではない。
+     * 全件を走査するので、HTML 全体を持つ body ではなく、一緒に保存する body_sha256 で本文の有無を見る。
+     *
+     * @return list<int>
+     */
+    public function containing(string $term, int $limit = self::LIMIT): array
+    {
+        $pattern = '%'.$this->escapeLike($term).'%';
+        $rows = DB::table('sitemap_pages')
+            ->selectRaw('MIN(sitemap_pages.id) as page_id')
+            ->where('sitemap_pages.searchable', true)
+            ->whereNull('sitemap_pages.unlisted_at')
+            ->whereNotNull('sitemap_pages.body_sha256')
+            ->where(function (Builder $query): void {
+                $query->whereNull('sitemap_pages.http_status')
+                    ->orWhere('sitemap_pages.http_status', '<>', 404);
+            })
+            ->whereNotNull('sitemap_pages.article_text')
+            ->whereRaw('sitemap_pages.article_text LIKE ? ESCAPE ?', [$pattern, '\\'])
+            ->groupBy('sitemap_pages.url')
+            ->orderByRaw('MIN(sitemap_pages.id)')
+            ->limit($limit)
+            ->get();
+
+        $ids = [];
+
+        foreach ($rows as $row) {
+            if (! is_numeric($row->page_id)) {
+                continue;
+            }
+
+            $ids[] = (int) $row->page_id;
+        }
+
+        return $ids;
+    }
+
+    private function escapeLike(string $term): string
+    {
+        return addcslashes($term, '\\%_');
+    }
+
+    /**
      * @return list<float>|null
      */
     private function decode(mixed $stored): ?array
