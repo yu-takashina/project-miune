@@ -173,10 +173,11 @@ class SitemapController extends Controller
 
     public function crawlNow(Sitemap $sitemap): JsonResponse
     {
-        (new InspectSitemap($sitemap->id, true))->handle(new SitemapUrlsetReader);
+        $ran = (new InspectSitemap($sitemap->id, true))->handle(new SitemapUrlsetReader);
         $sitemap->refresh();
 
         return response()->json([
+            'ran' => $ran,
             'status_label' => $sitemap->status->label(),
             'error_message' => $sitemap->error_message,
             'pages_count' => $sitemap->pages()->whereNull('unlisted_at')->count(),
