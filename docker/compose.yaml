@@ -15,7 +15,7 @@ services:
       APACHE_DOCUMENT_ROOT: /var/www/html/public
       TZ: Asia/Tokyo
     volumes:
-      - ..:/var/www/html
+      - ../backend:/var/www/html
     depends_on:
       db:
         condition: service_healthy
@@ -30,7 +30,7 @@ services:
     command: php artisan schedule:work
     restart: unless-stopped
     volumes:
-      - ..:/var/www/html
+      - ../backend:/var/www/html
     depends_on:
       db:
         condition: service_healthy
