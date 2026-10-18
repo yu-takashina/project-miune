@@ -191,6 +191,61 @@ class SearchResultTest extends TestCase
             ->assertDontSee('https://example.com/missing');
     }
 
+    public function test_the_same_url_on_another_sitemap_is_shown_once(): void
+    {
+        $first = Sitemap::factory()->create();
+        $second = Sitemap::factory()->create();
+        $weaker = $this->page($first, 'https://example.com/shared');
+        $closer = $this->page($second, 'https://example.com/shared');
+        $other = $this->page($first, 'https://example.com/other');
+        $this->insertEmbedding($weaker, $this->vector(0.0, 1.0));
+        $this->insertEmbedding($closer, $this->vector(1.0));
+        $this->insertEmbedding($other, $this->vector(0.0, 1.0));
+        $this->fakeEmbedding($this->vector(1.0));
+
+        $content = $this->get('/manager/search?q=同一')->assertOk()->getContent();
+
+        $this->assertIsString($content);
+        $this->assertSame(1, substr_count($content, 'break-all">https://example.com/shared</span>'));
+        $this->assertSame(1, substr_count($content, 'break-all">https://example.com/other</span>'));
+        $this->assertLessThan(
+            strpos($content, 'break-all">https://example.com/other</span>'),
+            strpos($content, 'break-all">https://example.com/shared</span>'),
+        );
+        $this->assertLessThan(
+            strpos($content, 'break-all">https://example.com/other</span>'),
+            strpos($content, '>1.00</td>'),
+        );
+    }
+
+    public function test_a_repeated_url_does_not_take_the_place_of_another_page(): void
+    {
+        $first = Sitemap::factory()->create();
+        $second = Sitemap::factory()->create();
+        $vector = $this->vector(1.0);
+        $urls = [];
+
+        for ($index = 1; $index <= 19; $index++) {
+            $url = 'https://example.com/page-'.$index;
+            $this->insertEmbedding($this->page($first, $url), $vector);
+            $urls[] = $url;
+        }
+
+        $this->insertEmbedding($this->page($second, $urls[0]), $vector);
+        $tail = 'https://example.com/page-20';
+        $this->insertEmbedding($this->page($first, $tail), $vector);
+        $this->fakeEmbedding($vector);
+
+        $content = $this->get('/manager/search?q=枠')->assertOk()->getContent();
+        $this->assertIsString($content);
+
+        foreach ($urls as $url) {
+            $this->assertSame(1, substr_count($content, 'break-all">'.$url.'</span>'));
+        }
+
+        $this->assertSame(1, substr_count($content, 'break-all">'.$tail.'</span>'));
+    }
+
     public function test_duplicate_embeddings_for_one_page_are_shown_once(): void
     {
         $sitemap = Sitemap::factory()->create();
