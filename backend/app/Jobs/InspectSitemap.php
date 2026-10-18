@@ -47,12 +47,12 @@ class InspectSitemap implements ShouldQueue
      * 確認待ちと巡回済の sitemap を読み、掲載 URL を同期する。ページの取得は sitemaps:crawl が行う。
      * 同じ sitemap を別の処理が読み込み中のときは何もしない。
      */
-    public function handle(SitemapUrlsetReader $reader): void
+    public function handle(SitemapUrlsetReader $reader): bool
     {
         $lock = Cache::lock(self::lockKey($this->sitemapId), self::LOCK_SECONDS);
 
         if (! $lock->get()) {
-            return;
+            return false;
         }
 
         try {
@@ -60,6 +60,8 @@ class InspectSitemap implements ShouldQueue
         } finally {
             $lock->release();
         }
+
+        return true;
     }
 
     private function inspect(SitemapUrlsetReader $reader): void
@@ -136,8 +138,16 @@ class InspectSitemap implements ShouldQueue
                 'error_message' => null,
             ]);
 
+            // 本文まで読むとメモリを使い切る。掲載の突き合わせに必要な列だけ取る。
             /** @var Collection<string, SitemapPage> $existing */
-            $existing = $sitemap->pages()->get()->keyBy(
+            $existing = $sitemap->pages()->get([
+                'id',
+                'url_sha256',
+                'unlisted_at',
+                'absence_count',
+                'body_sha256',
+                'crawled_at',
+            ])->keyBy(
                 fn (SitemapPage $page): string => $page->url_sha256,
             );
 
@@ -169,7 +179,8 @@ class InspectSitemap implements ShouldQueue
                     $page->crawled_at = null;
                 }
 
-                $page->save();
+                // 本文列を読んでいないので、保存時の本文ハッシュ更新は動かさない。
+                $page->saveQuietly();
             }
 
             foreach ($existing as $hash => $page) {
@@ -189,7 +200,7 @@ class InspectSitemap implements ShouldQueue
                     continue;
                 }
 
-                $page->save();
+                $page->saveQuietly();
             }
         });
     }

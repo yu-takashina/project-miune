@@ -244,7 +244,10 @@ function crawlSitemapNow(button) {
         return;
     }
 
+    const label = button.textContent;
     button.disabled = true;
+    button.textContent = '巡回しています';
+    setSitemapCrawlNotice(row, '');
 
     fetch(url, {
         method: 'POST',
@@ -262,18 +265,28 @@ function crawlSitemapNow(button) {
         })
         .then((body) => {
             if (body === null || typeof body.status_label !== 'string' || typeof body.pages_count !== 'number') {
-                button.disabled = false;
+                setSitemapCrawlNotice(row, '巡回できませんでした。');
 
                 return;
             }
 
+            if (body.ran === false) {
+                setSitemapCrawlNotice(row, '別の巡回が進行中です。');
+
+                return;
+            }
+
+            setSitemapCrawlNotice(row, '');
             setSitemapStatus(row, body.status_label, body.error_message);
             setPagesCount(row, body.pages_count);
             setCellText(row, '[data-sitemap-crawled-at]', body.crawled_at);
-            button.disabled = false;
         })
         .catch(() => {
+            setSitemapCrawlNotice(row, '巡回できませんでした。');
+        })
+        .finally(() => {
             button.disabled = false;
+            button.textContent = label ?? '今すぐ巡回';
         });
 }
 
@@ -591,6 +604,18 @@ document.querySelector('[data-api-key-delete-dialog]')?.addEventListener('click'
         closeApiKeyDelete();
     }
 });
+
+function setSitemapCrawlNotice(row, message) {
+    const notice = row.querySelector('[data-sitemap-crawl-notice]');
+
+    if (! (notice instanceof HTMLElement)) {
+        return;
+    }
+
+    notice.textContent = message;
+    notice.hidden = message === '';
+    notice.classList.toggle('text-[#f53003]', message !== '');
+}
 
 function setSitemapStatus(row, statusLabel, errorMessage) {
     const cell = row.querySelector('[data-sitemap-status]');

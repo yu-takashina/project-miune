@@ -17,6 +17,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -430,6 +431,7 @@ class SitemapTest extends TestCase
             ->postJson('/manager/sitemaps/'.$sitemap->id.'/crawl')
             ->assertOk()
             ->assertJson([
+                'ran' => true,
                 'status_label' => '巡回済',
                 'error_message' => InspectSitemap::depthErrorMessage(),
                 'pages_count' => 1,
@@ -1341,6 +1343,7 @@ class SitemapTest extends TestCase
             ->assertOk()
             ->assertSee('今すぐ巡回')
             ->assertSee('data-sitemap-crawl', false)
+            ->assertSee('data-sitemap-crawl-notice', false)
             ->assertSee(route('manager.sitemaps.crawl', $sitemap), false)
             ->assertSee(route('manager.sitemaps.crawl', $other), false);
 
@@ -1352,6 +1355,7 @@ class SitemapTest extends TestCase
         $response
             ->assertOk()
             ->assertJson([
+                'ran' => true,
                 'status_label' => '巡回済',
                 'error_message' => null,
                 'pages_count' => 2,
@@ -1419,6 +1423,7 @@ class SitemapTest extends TestCase
             ->postJson('/manager/sitemaps/'.$sitemap->id.'/crawl')
             ->assertOk()
             ->assertJson([
+                'ran' => true,
                 'status_label' => '巡回済',
                 'error_message' => null,
                 'pages_count' => 2,
@@ -1482,6 +1487,7 @@ class SitemapTest extends TestCase
             ->postJson('/manager/sitemaps/'.$sitemap->id.'/crawl')
             ->assertOk()
             ->assertJson([
+                'ran' => true,
                 'status_label' => '巡回済',
                 'error_message' => null,
                 'pages_count' => 1,
@@ -1490,6 +1496,57 @@ class SitemapTest extends TestCase
         $this->assertSame(SitemapStatus::Completed, $sitemap->refresh()->status);
         $this->assertNull($sitemap->error_message);
         $this->assertSame(['https://example.com/a'], $sitemap->pages()->pluck('url')->all());
+    }
+
+    public function test_an_immediate_crawl_keeps_stored_bodies_when_a_url_returns(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://example.com/sitemap.xml' => Http::response($this->urlset('https://example.com/back'), 200),
+        ]);
+
+        $sitemap = $this->completedSitemap();
+        $page = SitemapPage::query()->create([
+            'sitemap_id' => $sitemap->id,
+            'url' => 'https://example.com/back',
+            'body' => 'stored-body',
+            'body_sha256' => hash('sha256', 'stored-body'),
+            'article_text' => '採用本文',
+            'unlisted_at' => now(),
+            'absence_count' => 2,
+        ]);
+        $page->refresh();
+        DB::table('sitemap_page_embeddings')->insert([
+            'sitemap_page_id' => $page->id,
+            'embedding' => json_encode(array_fill(0, 1536, 0.1)),
+            'article_text_sha256' => $page->article_text_sha256,
+            'embedded_at' => now(),
+        ]);
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+
+        $this->actingAs(User::factory()->create())
+            ->postJson('/manager/sitemaps/'.$sitemap->id.'/crawl')
+            ->assertOk()
+            ->assertJson([
+                'ran' => true,
+                'pages_count' => 1,
+            ]);
+
+        foreach (DB::getQueryLog() as $query) {
+            $this->assertIsString($query['query']);
+            $this->assertDoesNotMatchRegularExpression('/[`"]body[`"]/', $query['query']);
+            $this->assertDoesNotMatchRegularExpression('/[`"]article_text[`"]/', $query['query']);
+        }
+
+        $page->refresh();
+        $this->assertNull($page->unlisted_at);
+        $this->assertSame(0, $page->absence_count);
+        $this->assertSame('stored-body', $page->body);
+        $this->assertSame('採用本文', $page->articleText());
+        $this->assertSame(hash('sha256', '採用本文'), $page->article_text_sha256);
+        $this->assertSame(1, $page->embeddings()->count());
     }
 
     public function test_a_page_from_another_sitemap_cannot_be_crawled_immediately(): void
@@ -2021,6 +2078,7 @@ class SitemapTest extends TestCase
             ->postJson(route('manager.sitemaps.crawl', $sitemap))
             ->assertOk()
             ->assertJson([
+                'ran' => false,
                 'status_label' => '確認待ち',
                 'error_message' => null,
                 'pages_count' => 0,
@@ -2052,6 +2110,7 @@ class SitemapTest extends TestCase
             ->postJson(route('manager.sitemaps.crawl', $sitemap))
             ->assertOk()
             ->assertJson([
+                'ran' => false,
                 'status_label' => '取得失敗',
                 'error_message' => $message,
                 'pages_count' => 0,

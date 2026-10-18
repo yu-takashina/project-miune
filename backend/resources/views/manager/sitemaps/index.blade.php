@@ -139,6 +139,7 @@
                                             >削除</button>
                                         </form>
                                     </div>
+                                    <p class="mt-1 text-sm" data-sitemap-crawl-notice hidden></p>
                                 </td>
                             </tr>
                         @endforeach
