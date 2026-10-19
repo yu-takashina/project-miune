@@ -134,7 +134,7 @@ function client_address(): string
 }
 
 /**
- * 同一IPの60秒間のアクセスが10回以上なら、再試行までの秒数を返す。
+ * 同一IPの直近のアクセスが上限の回数を超えたら、再試行までの秒数を返す。
  * 記録してから数える。同時に来たアクセスが上限をすり抜けないようにする。
  */
 function search_retry_after(string $address): ?int
@@ -158,7 +158,7 @@ function search_retry_after(string $address): ?int
         $hits[] = $now;
         $retryAfter = null;
 
-        if (count($hits) >= SEARCH_RATE_LIMIT) {
+        if (count($hits) > SEARCH_RATE_LIMIT) {
             $hits = array_values(array_slice($hits, -SEARCH_RATE_LIMIT));
             $retryAfter = max(1, $hits[0] + SEARCH_RATE_WINDOW_SECONDS - $now);
         }
