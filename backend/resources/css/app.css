@@ -103,6 +103,7 @@ tr[data-search-off="true"] > td {
     font-size: 0.6875rem;
     font-weight: 600;
     line-height: 1;
+    cursor: pointer;
 }
 
 .help-mark:hover,

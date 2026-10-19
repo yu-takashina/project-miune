@@ -108,7 +108,7 @@
                                             <option value="" @selected($sitemap->absence_limit === null)>削除しない</option>
                                         </select>
                                         <button
-                                            class="inline-flex items-center justify-center rounded-sm p-1"
+                                            class="inline-flex cursor-pointer items-center justify-center rounded-sm p-1"
                                             type="button"
                                             data-absence-edit
                                             aria-label="削除までの回数を変更"
@@ -123,7 +123,7 @@
                                 <td class="px-3 py-2">
                                     <div class="flex items-center gap-3 whitespace-nowrap">
                                         <button
-                                            class="rounded-sm bg-[#1b1b18] px-3 py-2 text-sm text-white"
+                                            class="cursor-pointer rounded-sm bg-[#1b1b18] px-3 py-2 text-sm text-white"
                                             type="button"
                                             data-sitemap-crawl
                                             data-url="{{ route('manager.sitemaps.crawl', $sitemap) }}"
@@ -132,7 +132,7 @@
                                             @csrf
                                             @method('DELETE')
                                             <button
-                                                class="rounded-sm bg-[#f53003] px-3 py-2 text-sm text-white"
+                                                class="cursor-pointer rounded-sm bg-[#f53003] px-3 py-2 text-sm text-white"
                                                 type="button"
                                                 data-sitemap-delete
                                                 data-sitemap-url="{{ $sitemap->url }}"

@@ -136,7 +136,7 @@
                                 <td class="px-3 py-2">
                                     <button
                                         type="button"
-                                        class="whitespace-nowrap rounded-sm bg-[#1b1b18] px-3 py-2 text-sm text-white"
+                                        class="cursor-pointer whitespace-nowrap rounded-sm bg-[#1b1b18] px-3 py-2 text-sm text-white"
                                         data-crawl
                                         data-url="{{ route('manager.sitemaps.pages.crawl', [$sitemap, $page]) }}"
                                     >今すぐ巡回</button>

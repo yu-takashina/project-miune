@@ -159,6 +159,11 @@ class CrawlSitemapPage implements ShouldQueue
                 'extracted_at' => now(),
             ]);
         }
+
+        // 抜き直しの直前に残したベクトル行は、同じ本文に戻ったときのためだけのもの。
+        if ($page->article_text_sha256 === null) {
+            $page->embeddings()->delete();
+        }
     }
 
     private function utf8ContentType(?string $contentType): ?string
@@ -217,8 +222,19 @@ class CrawlSitemapPage implements ShouldQueue
         return (int) $header;
     }
 
+    public function failed(Throwable $exception): void
+    {
+        $page = SitemapPage::query()->find($this->sitemapPageId);
+
+        if ($page === null) {
+            return;
+        }
+
+        $this->markFetchFailed($page, $exception);
+    }
+
     /**
-     * 接続できないとき、または HTTP 404 のときは crawled_at を変えず、失敗が続くほど次の取得を遅らせる。
+     * 接続できないとき、HTTP 404 のとき、予期しない例外のときは crawled_at を変えず、失敗が続くほど次の取得を遅らせる。
      */
     private function markFetchFailed(SitemapPage $page, ?Throwable $exception = null, ?int $httpStatus = null): void
     {

@@ -14,6 +14,7 @@ use App\Services\SearchSitemapPages;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 
 class SearchController extends Controller
 {
@@ -39,7 +40,8 @@ class SearchController extends Controller
             ], 401);
         }
 
-        $query = $request->string('q')->trim()->toString();
+        $term = $request->query('q');
+        $query = is_string($term) ? Str::trim($term) : '';
 
         if ($query === '') {
             return response()->json([

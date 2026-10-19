@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Jobs\CrawlSitemapPage;
 use App\Models\SitemapPage;
 use Illuminate\Database\Eloquent\Builder;
+use Throwable;
 
 /**
  * 掲載中で、未取得か前回の取得から日が経ったページを、時間の許す範囲で取得する。
@@ -43,7 +44,15 @@ class CrawlDueSitemapPages
             }
 
             $fetchedAt = microtime(true);
-            (new CrawlSitemapPage($page->id))->handle();
+            $job = new CrawlSitemapPage($page->id);
+
+            try {
+                $job->handle();
+            } catch (Throwable $exception) {
+                report($exception);
+                $job->failed($exception);
+            }
+
             $attempted[] = $page->id;
             $nextAt = $fetchedAt + $this->intervalSeconds;
             $started = true;

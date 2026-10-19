@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\CrawlErrorKind;
+use App\Enums\ExtractionStatus;
 use App\Jobs\CrawlSitemapPage;
 use App\Models\CrawlErrorLog;
 use App\Models\Sitemap;
@@ -124,6 +125,29 @@ class SitemapEmbeddingTest extends TestCase
 
         $this->assertSame(0, $page->embeddings()->count());
         $this->assertNull($page->refresh()->article_text_sha256);
+    }
+
+    public function test_a_changed_body_that_fails_extraction_deletes_every_vector(): void
+    {
+        Http::fake([
+            'https://example.com/note' => Http::sequence()
+                ->push($this->html('one'), 200, ['Content-Type' => 'text/html; charset=UTF-8'])
+                ->push('alpha', 200, ['Content-Type' => 'text/plain; charset=UTF-8']),
+            'https://api.openai.com/v1/embeddings' => $this->embeddingResponse(),
+        ]);
+        $this->bindExtractor('本文A', '本文A');
+        $page = $this->page();
+
+        CrawlSitemapPage::dispatchSync($page->id);
+        $this->embed();
+        $this->assertSame(1, $page->embeddings()->count());
+
+        CrawlSitemapPage::dispatchSync($page->id);
+
+        $page->refresh();
+        $this->assertSame(ExtractionStatus::Failed, $page->extraction_status);
+        $this->assertNull($page->article_text_sha256);
+        $this->assertSame(0, $page->embeddings()->count());
     }
 
     public function test_a_temporary_failure_doubles_the_wait_before_the_next_try(): void

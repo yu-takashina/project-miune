@@ -191,6 +191,35 @@ class SearchApiTest extends TestCase
         $this->assertNull($this->apiKey->refresh()->last_used_at);
     }
 
+    public function test_a_term_in_the_request_body_is_ignored(): void
+    {
+        $this->fakeEmbedding($this->vector(1.0));
+
+        $this->json('GET', '/api/search', ['q' => '梅雨'])
+            ->assertStatus(422)
+            ->assertExactJson(['message' => '検索語を入力してください。']);
+
+        $this->assertSame(0, $this->embeddingCalls());
+
+        $this->json('GET', '/api/search?q=梅雨', ['q' => str_repeat('あ', 201)])
+            ->assertOk();
+
+        $this->assertSame(1, $this->embeddingCalls());
+        $term = SearchTerm::query()->first();
+        $this->assertInstanceOf(SearchTerm::class, $term);
+        $this->assertSame('梅雨', $term->term);
+    }
+
+    public function test_a_query_that_is_not_a_string_is_treated_as_empty(): void
+    {
+        $this->getJson('/api/search?q[]=梅雨')
+            ->assertStatus(422)
+            ->assertExactJson(['message' => '検索語を入力してください。']);
+
+        $this->assertSame(0, $this->embeddingCalls());
+        $this->assertNull($this->apiKey->refresh()->last_used_at);
+    }
+
     public function test_invalid_queries_do_not_use_the_embedding_limit(): void
     {
         $this->fakeEmbedding($this->vector(1.0));
