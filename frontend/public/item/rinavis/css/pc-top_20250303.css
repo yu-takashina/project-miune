@@ -1,0 +1,203 @@
+@charset "utf-8";
+
+.rn-hero {
+  /* background: url('/item/rinavis/img/top/kv-cm-pc_250303.jpg') no-repeat bottom / 100%; */
+  background: url('/item/rinavis/img/top/kv-cm-pc_260401_2.jpg') no-repeat center bottom / cover;
+  height: 600px;
+}
+
+.rn-hero h1 img {
+  filter: drop-shadow(2px 2px 5px rgba(51, 51, 51, 0.5));
+  max-width: 420px;
+  width: 100%;
+}
+
+.top-kv__subtxt {
+  text-align: left;
+  color: #666666;
+  font-size: 12px;
+  font-weight: 500;
+  max-width: 1000px;
+  margin: 40px auto 80px;
+}
+
+ul.top-kv__subtxt li {
+  text-indent: -20px;
+  margin-left: 12px;
+}
+
+.rn-video {
+  background: #36ccda;
+  background-image: radial-gradient(circle, #e8e8e800 3px, #0000000a 3px);
+  background-position: 0 0;
+  background-size: 26px 26px;
+  padding-bottom: 60px;
+  /* margin-bottom: 80px */
+}
+
+.video-cm_area {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  color: #FFF;
+  text-align: center;
+  font-size: 18px;
+}
+
+.video-cm_area div {
+  width: calc((100% - 40px) / 2);
+}
+
+.rn-video .video-cm_area video {
+  width: 100%;
+  /* width: calc((100% - 40px)/2); */
+  border: 8px solid #fff;
+  box-shadow: 4px 4px 0 #0097AC;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
+.rn-video .rn-course_subttl:before {
+  content: "";
+  width: 1.5em;
+  height: 1.5em;
+  background: url('/item/rinavis/img/common/ico_title_white.svg') no-repeat center /75%;
+  display: inline-block;
+  vertical-align: text-top;
+  margin-right: 0.25em;
+}
+
+main.rn section#pc-top-no1,
+main.rn section#pc-top-cp {
+  padding: 4rem 0;
+}
+
+
+/* No.1訴求　↓ */
+.rn-course_subttl .kome,
+.pc-top-no1_title .kome {
+  font-size: 1.4rem;
+  color: #0097AC;
+}
+
+.pc-top_evidence {
+  text-align: left;
+  color: #666666;
+  font-size: 1.2rem;
+  font-weight: 500;
+  max-width: 1100px;
+  margin: 4rem auto;
+  text-indent: -20px;
+  margin-left: 12px;
+}
+
+section#pc-top-no1 {
+  padding: 4rem 0;
+}
+
+section#pc-top-no1 h2 span.no1 {
+  font-size: 4rem;
+  font-weight: 700;
+  color: #0097AC;
+  margin-left: 0.4rem;
+}
+
+.pc-top-no1_content {
+  background: #fff;
+  border-radius: 1rem;
+  padding: 3rem 8rem 5rem;
+  border: 4px solid #36ccda;
+}
+
+.pc-top-no1_title {
+  font-size: 2rem;
+  font-weight: 500;
+  text-align: center;
+  line-height: 4rem;
+  letter-spacing: 0.08em;
+}
+
+.pc-top-no1_title mark {
+  background: linear-gradient(transparent 80%, #ff0 4%);
+  color: #484848;
+  font-size: 2.4rem;
+  position: relative;
+}
+
+.pc-top-no1_title .il6 {
+  background: url('/item/rinavis/img/common/il6.png') no-repeat center / contain;
+  width: 2rem;
+  height: 4rem;
+  display: inline-block;
+  vertical-align: bottom;
+  position: absolute;
+  left: -4rem;
+  bottom: -0.4rem;
+}
+
+.pc-top-no1_title .il7 {
+  background: url('/item/rinavis/img/common/il7.png') no-repeat center / contain;
+  width: 2rem;
+  height: 4rem;
+  display: inline-block;
+  vertical-align: bottom;
+  position: absolute;
+  right: -3.4rem;
+  bottom: -0.4rem;
+}
+
+.pc-top-no1_title span {
+  font-size: 4rem;
+  font-weight: 700;
+  color: #0097AC;
+}
+
+.pc-top-no1_content .pc-top-no1_items h4 {
+  font-size: 1.6rem;
+  line-height: 1.4;
+  text-align: center;
+  font-weight: 500;
+}
+
+.pc-top-no1_content .pc-top-no1_items h4 span {
+  color: #0097ac;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.pc-top-no1_items {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.pc-top-no1_item {
+  display: flex;
+  flex-direction: column;
+  width: calc((100% - 2rem)/3);
+}
+
+/* No.1訴求　↑ */
+@media (max-width:1260px) {
+  .rn-hero h1 img {
+    max-width: 380px;
+  }
+}
+@media (max-width:1200px) {
+  .rn-hero {
+    background: url(/item/rinavis/img/top/kv-cm-pc_260401_2.jpg) no-repeat -30rem bottom / cover;
+  }
+}
+@media (max-width:1100px) {
+  .rn-hero {
+    background: url(/item/rinavis/img/top/kv-cm-pc_260401_2.jpg) no-repeat -40rem bottom / cover;
+  }
+}
+@media (max-width:920px) {
+  .rn-hero {
+    background: url(/item/rinavis/img/top/kv-cm-pc_260401_2.jpg) no-repeat -50rem bottom / cover;
+  }
+}
