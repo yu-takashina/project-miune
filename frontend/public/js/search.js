@@ -7,6 +7,8 @@ const template = document.querySelector('#result-template');
 
 const titleSuffix = 'リナビス';
 
+let pending = null;
+
 const initialQuery = new URLSearchParams(location.search).get('q') ?? '';
 queryInput.value = initialQuery;
 
@@ -43,6 +45,9 @@ function writeQuery(query) {
 async function search(rawQuery, submitted) {
     const query = rawQuery.trim();
 
+    pending?.abort();
+    pending = null;
+    submit.disabled = false;
     results.replaceChildren();
     hideMessage();
     document.title = query === '' ? `検索｜${titleSuffix}` : `「${query}」の検索結果｜${titleSuffix}`;
@@ -55,6 +60,8 @@ async function search(rawQuery, submitted) {
         return;
     }
 
+    const controller = new AbortController();
+    pending = controller;
     submit.disabled = true;
 
     try {
@@ -62,8 +69,13 @@ async function search(rawQuery, submitted) {
             headers: {
                 Accept: 'application/json',
             },
+            signal: controller.signal,
         });
         const body = await readJson(response);
+
+        if (controller.signal.aborted) {
+            return;
+        }
 
         if (! response.ok) {
             showMessage(messageOf(body), true);
@@ -81,9 +93,14 @@ async function search(rawQuery, submitted) {
             results.append(renderResult(item));
         }
     } catch {
-        showMessage('検索に失敗しました。', true);
+        if (! controller.signal.aborted) {
+            showMessage('検索に失敗しました。', true);
+        }
     } finally {
-        submit.disabled = false;
+        if (pending === controller) {
+            pending = null;
+            submit.disabled = false;
+        }
     }
 }
 
