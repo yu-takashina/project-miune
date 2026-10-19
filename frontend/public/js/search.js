@@ -128,7 +128,7 @@ function renderResult(item) {
     const url = item !== null && typeof item === 'object' && typeof item.url === 'string' ? item.url : '';
     const article = item !== null && typeof item === 'object' && typeof item.article_text === 'string' ? item.article_text : '';
 
-    urlText.textContent = compact(url);
+    urlText.textContent = readableUrl(compact(url));
 
     if (isHttpUrl(url)) {
         link.href = url;
@@ -149,6 +149,14 @@ function renderResult(item) {
 
 function compact(value) {
     return value.replace(/\s+/g, '');
+}
+
+function readableUrl(value) {
+    try {
+        return decodeURI(value);
+    } catch {
+        return value;
+    }
 }
 
 function isHttpUrl(value) {
