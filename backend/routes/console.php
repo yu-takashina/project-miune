@@ -25,9 +25,16 @@ Artisan::command('sitemaps:inspect', function (): void {
             $query->whereNull('crawled_at')
                 ->orWhere('crawled_at', '<=', now()->subDay());
         })
-        ->orderBy('id')
+        ->lazyById()
         ->each(function (Sitemap $sitemap) use ($reader): void {
-            (new InspectSitemap($sitemap->id))->handle($reader);
+            $job = new InspectSitemap($sitemap->id);
+
+            try {
+                $job->handle($reader);
+            } catch (Throwable $exception) {
+                report($exception);
+                $job->failed($exception);
+            }
         });
 })->purpose('未読か前回の読み込みから1日経ったサイトマップを読み、掲載URLを同期する');
 

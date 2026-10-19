@@ -12,13 +12,17 @@ use App\Models\SitemapPage;
 use App\Models\User;
 use App\Services\CrawlDueSitemapPages;
 use App\Services\SitemapUrlsetReader;
+use GuzzleHttp\Psr7\FnStream;
+use GuzzleHttp\Psr7\Utils;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
+use RuntimeException;
 use Tests\TestCase;
 
 class SitemapTest extends TestCase
@@ -639,6 +643,41 @@ class SitemapTest extends TestCase
         (new CrawlDueSitemapPages(0, 0))->run();
 
         $this->assertSame('bravo', $second->refresh()->body);
+    }
+
+    public function test_an_unexpected_error_on_one_page_does_not_stop_the_crawl(): void
+    {
+        Exceptions::fake();
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://example.com/broken' => Http::response(FnStream::decorate(Utils::streamFor('broken'), [
+                'read' => fn (): string => throw new RuntimeException('本文を読めません。'),
+            ]), 200),
+            'https://example.com/ok' => Http::response('ok', 200),
+        ]);
+
+        $sitemap = $this->completedSitemap();
+        $broken = SitemapPage::query()->create([
+            'sitemap_id' => $sitemap->id,
+            'url' => 'https://example.com/broken',
+        ]);
+        $ok = SitemapPage::query()->create([
+            'sitemap_id' => $sitemap->id,
+            'url' => 'https://example.com/ok',
+        ]);
+
+        (new CrawlDueSitemapPages(0, 3600))->run();
+
+        Exceptions::assertReported(RuntimeException::class);
+        $broken->refresh();
+        $this->assertNull($broken->body);
+        $this->assertNull($broken->crawled_at);
+        $this->assertSame('取得に失敗しました。', $broken->error_message);
+        $this->assertSame(1, $broken->fetch_failure_count);
+        $this->assertNotNull($broken->fetch_retry_at);
+        $log = CrawlErrorLog::query()->where('sitemap_page_id', $broken->id)->sole();
+        $this->assertSame('取得に失敗しました。本文を読めません。', $log->message);
+        $this->assertSame('ok', $ok->refresh()->body);
     }
 
     public function test_crawling_skips_pages_that_already_finished_or_left_the_sitemap(): void
@@ -2041,6 +2080,76 @@ class SitemapTest extends TestCase
 
         $this->assertNull($log->refresh()->sitemap_id);
         $this->assertSame('https://example.com/sitemap.xml', $log->url);
+    }
+
+    public function test_an_unexpected_error_in_one_sitemap_does_not_stop_the_others(): void
+    {
+        Exceptions::fake();
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://example.com/broken.xml' => fn () => throw new RuntimeException('予期しないエラー'),
+            'https://example.com/ok.xml' => Http::response($this->urlset('https://example.com/ok'), 200),
+        ]);
+
+        $broken = Sitemap::factory()->create([
+            'url' => 'https://example.com/broken.xml',
+            'status' => SitemapStatus::Pending,
+        ]);
+        $ok = Sitemap::factory()->create([
+            'url' => 'https://example.com/ok.xml',
+            'status' => SitemapStatus::Pending,
+        ]);
+
+        $this->artisan('sitemaps:inspect')->assertSuccessful();
+
+        Exceptions::assertReported(RuntimeException::class);
+        $broken->refresh();
+        $this->assertSame(SitemapStatus::Failed, $broken->status);
+        $this->assertSame('sitemap.xml を取得できませんでした。', $broken->error_message);
+        $this->assertNull($broken->crawled_at);
+        $this->assertSame(1, CrawlErrorLog::query()->where('sitemap_id', $broken->id)->count());
+        $this->assertSame(SitemapStatus::Completed, $ok->refresh()->status);
+        $this->assertSame(['https://example.com/ok'], $ok->pages()->pluck('url')->all());
+    }
+
+    public function test_an_unexpected_error_keeps_a_completed_sitemap_for_the_next_run(): void
+    {
+        Exceptions::fake();
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://example.com/broken.xml' => fn () => throw new RuntimeException('予期しないエラー'),
+        ]);
+
+        $sitemap = Sitemap::factory()->create([
+            'url' => 'https://example.com/broken.xml',
+            'status' => SitemapStatus::Completed,
+            'crawled_at' => now()->subDays(2),
+        ]);
+
+        $this->artisan('sitemaps:inspect')->assertSuccessful();
+
+        $sitemap->refresh();
+        $this->assertSame(SitemapStatus::Completed, $sitemap->status);
+        $this->assertNull($sitemap->error_message);
+        $this->assertSame(1, CrawlErrorLog::query()->where('sitemap_id', $sitemap->id)->count());
+    }
+
+    public function test_inspection_reads_every_due_sitemap_past_the_first_thousand(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            '*' => Http::response('error', 500),
+        ]);
+
+        Sitemap::factory()->count(1001)->create([
+            'status' => SitemapStatus::Pending,
+        ]);
+
+        $this->artisan('sitemaps:inspect')->assertSuccessful();
+
+        Http::assertSentCount(1001);
+        $this->assertSame(0, Sitemap::query()->where('status', SitemapStatus::Pending)->count());
+        $this->assertSame(1001, Sitemap::query()->where('status', SitemapStatus::Failed)->count());
     }
 
     public function test_the_three_steps_are_scheduled(): void
