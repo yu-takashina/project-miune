@@ -22,9 +22,9 @@ class ApiKeyTest extends TestCase
     {
         $apiKey = ApiKey::factory()->create();
 
-        $this->get('/manager/api-keys')->assertRedirect('/login');
-        $this->post('/manager/api-keys')->assertRedirect('/login');
-        $this->delete('/manager/api-keys/'.$apiKey->id)->assertRedirect('/login');
+        $this->get('/manager/api-keys')->assertRedirect('/');
+        $this->post('/manager/api-keys')->assertRedirect('/');
+        $this->delete('/manager/api-keys/'.$apiKey->id)->assertRedirect('/');
 
         $this->assertModelExists($apiKey);
     }

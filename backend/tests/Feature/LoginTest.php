@@ -19,10 +19,11 @@ class LoginTest extends TestCase
 
     public function test_login_screen_can_be_rendered(): void
     {
-        $response = $this->get('/login');
+        $response = $this->get('/');
 
         $response->assertOk();
         $response->assertSee('ログイン');
+        $this->get('/login')->assertNotFound();
         $response->assertDontSee('ログインを保持する');
         $response->assertDontSee('パスワードを忘れた');
     }
@@ -34,7 +35,7 @@ class LoginTest extends TestCase
             'password' => '123456789',
         ]);
 
-        $response = $this->post('/login', [
+        $response = $this->post('/', [
             'email' => 'user1@example.com',
             'password' => '123456789',
         ]);
@@ -50,20 +51,20 @@ class LoginTest extends TestCase
             'password' => '123456789',
         ]);
 
-        $response = $this->from('/login')->post('/login', [
+        $response = $this->from('/')->post('/', [
             'email' => 'user1@example.com',
             'password' => 'wrong-password',
         ]);
 
         $this->assertGuest();
-        $response->assertRedirect('/login');
+        $response->assertRedirect('/');
         $response->assertSessionHasErrors('email');
     }
 
     public function test_guests_are_redirected_from_the_manager(): void
     {
-        $this->get('/manager')->assertRedirect('/login');
-        $this->get('/manager/sitemap')->assertRedirect('/login');
+        $this->get('/manager')->assertRedirect('/');
+        $this->get('/manager/sitemap')->assertRedirect('/');
     }
 
     public function test_the_manager_redirects_to_the_sitemap_index(): void
@@ -92,7 +93,7 @@ class LoginTest extends TestCase
         $user = User::factory()->create();
 
         $this->actingAs($user)
-            ->get('/login')
+            ->get('/')
             ->assertRedirect('/manager');
     }
 
@@ -103,6 +104,6 @@ class LoginTest extends TestCase
         $response = $this->actingAs($user)->post('/logout');
 
         $this->assertGuest();
-        $response->assertRedirect('/login');
+        $response->assertRedirect('/');
     }
 }

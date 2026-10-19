@@ -40,7 +40,7 @@ class SitemapTest extends TestCase
     {
         $this->post('/manager/sitemaps', [
             'url' => 'https://example.com/sitemap.xml',
-        ])->assertRedirect('/login');
+        ])->assertRedirect('/');
 
         $this->assertDatabaseCount('sitemaps', 0);
     }
@@ -49,7 +49,7 @@ class SitemapTest extends TestCase
     {
         $sitemap = Sitemap::factory()->create();
 
-        $this->delete('/manager/sitemaps/'.$sitemap->id)->assertRedirect('/login');
+        $this->delete('/manager/sitemaps/'.$sitemap->id)->assertRedirect('/');
 
         $this->assertDatabaseHas('sitemaps', ['id' => $sitemap->id]);
     }
@@ -884,7 +884,7 @@ class SitemapTest extends TestCase
     {
         $sitemap = Sitemap::factory()->create();
 
-        $this->get('/manager/sitemaps/'.$sitemap->id)->assertRedirect('/login');
+        $this->get('/manager/sitemaps/'.$sitemap->id)->assertRedirect('/');
     }
 
     public function test_published_count_links_to_the_url_list_without_the_response_body(): void
@@ -1348,7 +1348,7 @@ class SitemapTest extends TestCase
         ]);
 
         $this->post('/manager/sitemaps/'.$sitemap->id.'/pages/'.$page->id.'/crawl')
-            ->assertRedirect('/login');
+            ->assertRedirect('/');
 
         $this->assertNull($page->refresh()->crawled_at);
     }
@@ -1419,7 +1419,7 @@ class SitemapTest extends TestCase
     {
         $sitemap = Sitemap::factory()->create();
 
-        $this->post('/manager/sitemaps/'.$sitemap->id.'/crawl')->assertRedirect('/login');
+        $this->post('/manager/sitemaps/'.$sitemap->id.'/crawl')->assertRedirect('/');
 
         $this->assertSame(SitemapStatus::Pending, $sitemap->refresh()->status);
         $this->assertSame(0, $sitemap->pages()->count());
