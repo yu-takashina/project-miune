@@ -16,7 +16,7 @@
             @include('partials.search-box', ['id' => 'header-search'])
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
-                <button class="text-sm underline underline-offset-4" type="submit">ログアウト</button>
+                <button class="cursor-pointer text-sm underline underline-offset-4" type="submit">ログアウト</button>
             </form>
         </div>
     </div>
