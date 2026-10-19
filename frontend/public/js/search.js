@@ -72,7 +72,7 @@ async function search(rawQuery, submitted) {
         }
 
         if (! Array.isArray(body) || body.length === 0) {
-            showMessage('お役立つ記事が見つかりませんでした。', false);
+            showMessage('お役に立つ記事が見つかりませんでした。', false);
 
             return;
         }
