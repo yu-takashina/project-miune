@@ -7,6 +7,8 @@ const template = document.querySelector('#result-template');
 
 const titleSuffix = 'リナビス';
 
+let pending = null;
+
 const initialQuery = new URLSearchParams(location.search).get('q') ?? '';
 queryInput.value = initialQuery;
 
@@ -43,6 +45,9 @@ function writeQuery(query) {
 async function search(rawQuery, submitted) {
     const query = rawQuery.trim();
 
+    pending?.abort();
+    pending = null;
+    submit.disabled = false;
     results.replaceChildren();
     hideMessage();
     document.title = query === '' ? `検索｜${titleSuffix}` : `「${query}」の検索結果｜${titleSuffix}`;
@@ -55,6 +60,8 @@ async function search(rawQuery, submitted) {
         return;
     }
 
+    const controller = new AbortController();
+    pending = controller;
     submit.disabled = true;
 
     try {
@@ -62,8 +69,13 @@ async function search(rawQuery, submitted) {
             headers: {
                 Accept: 'application/json',
             },
+            signal: controller.signal,
         });
         const body = await readJson(response);
+
+        if (controller.signal.aborted) {
+            return;
+        }
 
         if (! response.ok) {
             showMessage(messageOf(body), true);
@@ -72,7 +84,7 @@ async function search(rawQuery, submitted) {
         }
 
         if (! Array.isArray(body) || body.length === 0) {
-            showMessage('お役立つ記事が見つかりませんでした。', false);
+            showMessage('お役に立つ記事が見つかりませんでした。', false);
 
             return;
         }
@@ -81,9 +93,14 @@ async function search(rawQuery, submitted) {
             results.append(renderResult(item));
         }
     } catch {
-        showMessage('検索に失敗しました。', true);
+        if (! controller.signal.aborted) {
+            showMessage('検索に失敗しました。', true);
+        }
     } finally {
-        submit.disabled = false;
+        if (pending === controller) {
+            pending = null;
+            submit.disabled = false;
+        }
     }
 }
 
@@ -111,7 +128,7 @@ function renderResult(item) {
     const url = item !== null && typeof item === 'object' && typeof item.url === 'string' ? item.url : '';
     const article = item !== null && typeof item === 'object' && typeof item.article_text === 'string' ? item.article_text : '';
 
-    urlText.textContent = compact(url);
+    urlText.textContent = readableUrl(compact(url));
 
     if (isHttpUrl(url)) {
         link.href = url;
@@ -132,6 +149,14 @@ function renderResult(item) {
 
 function compact(value) {
     return value.replace(/\s+/g, '');
+}
+
+function readableUrl(value) {
+    try {
+        return decodeURI(value);
+    } catch {
+        return value;
+    }
 }
 
 function isHttpUrl(value) {
