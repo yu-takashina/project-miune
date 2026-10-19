@@ -20,6 +20,27 @@ services:
       db:
         condition: service_healthy
 
+  frontend:
+    image: miune-app
+    # ホスト:コンテナ = ブラウザからの HTTP ポート
+    ports:
+      - "8015:80"
+    build:
+      context: ./app/frontend
+      args:
+        TZ: Asia/Tokyo
+        UID: ${HOST_UID:-1000}
+        GID: ${HOST_GID:-1000}
+    container_name: miune_frontend
+    environment:
+      APACHE_DOCUMENT_ROOT: /var/www/html/public
+      TZ: Asia/Tokyo
+    volumes:
+      - ../frontend:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+
   # 1分おきに起動して1秒に1ページ取得し、毎日サイトマップの差分を更新する
   scheduler:
     image: miune-app
