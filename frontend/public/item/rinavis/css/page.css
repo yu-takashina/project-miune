@@ -1,0 +1,524 @@
+.OgWapper .colorRED {
+  color: #bc2c29
+}
+
+.OgWapper .colorBLUE {
+  color: #428cbc
+}
+
+.OgWapper table td.corpTitCel {
+  color: #4f412c;
+  background: #e9e3d9;
+  width: 140px;
+  height: 40px;
+  padding-left: 10px;
+  vertical-align: middle;
+  border: #d0c8ba 1px solid
+}
+
+.OgWapper table td.corpTitCel02 {
+  color: #4f412c;
+  background: #fff;
+  width: 530px;
+  height: 40px;
+  padding-left: 10px;
+  vertical-align: middle;
+  border-top: #d0c8ba 1px solid;
+  border-right: #d0c8ba 1px solid;
+  border-bottom: #d0c8ba 1px solid
+}
+
+.OgWapper .blueBox {
+  width: 330px;
+  border: 1px solid #83a6c4;
+  border-radius: 6px;
+  -webkit-border-radius: 6px;
+  -moz-border-radius: 6px;
+  padding: 10px;
+  font-size: .9em;
+  background: #fff
+}
+
+.OgWapper .courseListBox {
+  background: url('/item/ssl/img/course/course_bg.jpg');
+  padding: 24px 24px
+}
+
+.OgWapper .OGwd380 {
+  width: 380px
+}
+
+.OgWapper .guideBox01 p {
+  width: 371px
+}
+
+.OgWapper .guideBox03 .guideInnerBox {
+  height: 202px;
+  width: 407px
+}
+
+.OgWapper .guideBox04 p {
+  width: 430px
+}
+
+.OgWapper .guideBox07 p {
+  width: 320px
+}
+
+.OgWapper p.OGwd420 {
+  width: 420px
+}
+
+.OgWapper p.OGwd410 {
+  width: 410px
+}
+
+.OgWapper .guideBox12 tr {
+  border: 1px solid #ccc
+}
+
+.OgWapper .guideBox12 td {
+  width: 700px;
+  padding: 10px
+}
+
+.OgWapper .guideBox12 td.guide12Bg {
+  background: #fff
+}
+
+.tbl_bank {
+  border-top: 1px solid #bbb;
+  border-left: 1px solid #bbb;
+  border-right: 1px solid #bbb;
+  border-bottom: 0;
+  border-collapse: collapse;
+  width: 300px
+}
+
+.tbl_bank th {
+  background: #fff;
+  padding: 5px;
+  border-right: 1px solid #bbb;
+  border-bottom: 1px solid #bbb
+}
+
+.tbl_bank td {
+  background: transparent;
+  padding: 5px;
+  border-bottom: 1px solid #bbb
+}
+
+.guideSideNav {
+  border: 1px solid #e9d9bd;
+  width: 200px;
+  position: fixed;
+  bottom: 20px;
+  right: 0;
+  background: #fff;
+  padding: 0 5px 10px 0
+}
+
+.guideSideNav img a {
+  padding: 3px 0
+}
+
+.OgWapper .craftsmanlistBox {
+  background: url('/item/ssl/img/craftsmanlist/craftsmanlist_img03.jpg');
+  height: 524px
+}
+
+.OgWapper .craftsmanlistBox li {
+  display: inline;
+  margin-right: 6px
+}
+
+.OgWapper .OGwd330 {
+  width: 330px
+}
+
+.OgWapper .TXTlarge {
+  font-size: 1.3em;
+  font-weight: bold
+}
+
+.OgWapper .craftsmanlistBox02 {
+  background: url('/item/ssl/img/craftsmanlist/craftsman_list02.jpg') repeat-y;
+  height: 600px
+}
+
+.OgWapper .craftsmanlistBox02 li {
+  display: inline;
+  margin-right: 6px
+}
+
+.OgWapper ul.clean_udbtn li {
+  margin-right: 11px;
+  display: inline
+}
+
+.OgWapper ul.clean_udbtn li:last-child {
+  margin-right: 0
+}
+
+.OgWapper .cleaningTablist li {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  width: 146px
+}
+
+.OgWapper .cleaningTablist img {
+  vertical-align: bottom
+}
+
+.OgWapper .OGwd450 {
+  width: 450px
+}
+
+.OgWapper .OGwd460 {
+  width: 460px
+}
+
+.OgWapper .bg_white {
+  background: #fff;
+  padding: 0 15px 30px
+}
+
+.OgWapper .bg_brown {
+  background: #f6f4f0;
+  padding: 0 15px 30px
+}
+
+.OgWapper .limitationBg {
+  background: url('/item/ssl/img/cleaning/limitation_bg.png')
+}
+
+.OgWapper .limitationBg p {
+  margin: 0;
+  padding: 20px 30px
+}
+
+.OgWapper .OGwd420 {
+  width: 420px
+}
+
+.OgWapper .OGwd440 {
+  width: 440px
+}
+
+.OgWapper .passionBg {
+  background: url('/item/ssl/img/cleaning/passion_bg.png');
+  padding: 15px 20px 30px
+}
+
+.OgWapper label {
+  display: block;
+  border-top: 1px solid #d2d2d2;
+  border-right: 1px solid #d2d2d2;
+  border-left: 1px solid #d2d2d2;
+  background: #fff;
+  font-weight: bold;
+  font-size: 13px
+}
+
+.OgWapper .lastliBox {
+  border-bottom: 1px solid #d2d2d2
+}
+
+.OgWapper label img {
+  vertical-align: middle
+}
+
+.OgWapper input[type="checkbox"].on-off {
+  display: none
+}
+
+.OgWapper .qandaMenu ul {
+  -webkit-transition: all .5s;
+  -moz-transition: all .5s;
+  -ms-transition: all .5s;
+  -o-transition: all .5s;
+  transition: all .5s;
+  margin: 0;
+  padding: 0;
+  list-style: none
+}
+
+.OgWapper input[type="checkbox"].on-off+ul {
+  display: none;
+  padding: 10px
+}
+
+.OgWapper input[type="checkbox"].on-off:checked+ul {
+  background: #fff0f0;
+  border: 1px solid #d2d2d2;
+  display: block
+}
+
+.OgWapper .qandaMenu ul li {
+  padding: 20px 0
+}
+
+.OgWapper .corpBg {
+  background: url('/item/ssl/img/corporation/corp_img02.png');
+  height: 380px;
+  padding: 30px
+}
+
+.OgWapper .corpBg p {
+  font-size: 1.1em
+}
+
+.OgWapper .privacyBox {
+  border: #e9e3d9 1px solid;
+  padding: 20px;
+  margin-bottom: 40px;
+  background: #fff
+}
+
+.OgWapper .InnerprivacyBox {
+  border: #e9e3d9 1px solid;
+  padding: 20px;
+  background: #fff;
+  margin-top: 5px
+}
+
+.OgWapper .TxtIndent {
+  padding-left: 20px;
+  text-indent: -20px
+}
+
+.OgWapper ul.siteMapBox li {
+  padding: 20px 0 24px 15px;
+  border-top: #8fc8ec 1px dotted;
+  border-left: #8fc8ec 1px dotted;
+  border-right: #8fc8ec 1px dotted
+}
+
+.OgWapper ul.siteMapBox li:last-child {
+  border-bottom: #8fc8ec 1px dotted
+}
+
+.OgWapper ul.siteMapBox li a {
+  padding-left: 15px;
+  color: #4e412c
+}
+
+.OgWapper ul.InnersiteBox {
+  margin-right: 15px;
+  padding: 20px 10px;
+  background: #ecf5fa;
+  border-radius: 10px;
+  -webkit-border-radius: 10px;
+  -moz-border-radius: 10px
+}
+
+.OgWapper ul.InnersiteBox li {
+  border: 0;
+  display: inline-block;
+  width: auto;
+  padding: 0
+}
+
+.OgWapper ul.InnersiteBox li a {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: .5rem;
+  padding-left: 0
+}
+
+.OgWapper ul.InnersiteBox li:last-child {
+  border-bottom: 0
+}
+
+#FS2_body_Member .inputTableArea table.userTable_01 {
+  background: url('/item/ssl/img/mmship_bg.png');
+  width: 730px;
+  height: 200px;
+  margin-top: 10px;
+  margin-bottom: 0;
+  border: 0;
+  position: relative
+}
+
+.OgWapper .ligthBox {
+  position: relative;
+  display: none;
+  width: 730px;
+  height: 800px
+}
+
+.fancybox-wrap, .fancybox-outer, .fancybox-inner {
+  width: 745px !important
+}
+
+.OgWapper .mailform_ p {
+  padding: 30px 30px 0;
+  font-size: 1.1em
+}
+
+.OgWapper .mailform_ img {
+  padding-top: 30px;
+  padding-right: 30px
+}
+
+.OgWapper .mailform_m {
+  background: url('/item/ssl/img/inquiry_bg.jpg') no-repeat;
+  height: 730px;
+  width: 730px;
+  padding-bottom: 80px
+}
+
+.OgWapper .mailform_m form {
+  padding: 110px 0 0 40px
+}
+
+.OgWapper .mailform_m form p {
+  padding-bottom: 20px
+}
+
+.txt-c {
+  text-align: center
+}
+
+.OgWapper .mailform_m {
+  background: 0
+}
+
+.OgWapper .mailform_m form {
+  padding: 0
+}
+
+.select-wrap {
+  padding-bottom: 20px
+}
+
+.select-wrap p {
+  padding: 0 !important;
+  display: inline-block;
+  vertical-align: top;
+  margin-right: 20px
+}
+
+.cp_ipselect {
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: top
+}
+
+.cp_ipselect select {
+  border: 0 !important;
+  width: 100%;
+  padding-right: 1em;
+  cursor: pointer;
+  text-indent: .01px;
+  text-overflow: ellipsis;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  background-image: none;
+  box-shadow: none;
+  -webkit-appearance: none;
+  appearance: none
+}
+
+.cp_ipselect select::-ms-expand {
+  display: none
+}
+
+.cp_ipselect.cp_sl01 {
+  position: relative;
+  border: solid 1px #eee;
+  border-radius: 2px;
+  background: #fff
+}
+
+.cp_ipselect.cp_sl01::before {
+  position: absolute;
+  top: 1.3em;
+  right: .9em;
+  width: 0;
+  height: 0;
+  padding: 0;
+  content: '';
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid #666;
+  pointer-events: none
+}
+
+.cp_ipselect.cp_sl01 select {
+  padding: 8px 38px 8px 8px
+}
+
+#new_form table {
+  border-collapse: collapse;
+  width: 100%
+}
+
+#new_form input, #new_form textarea {
+  border: solid 1px #bbb;
+  box-sizing: border-box;
+  padding: .3rem .8rem;
+  border-radius: 2px;
+  background-color: #fff
+}
+
+#new_form input[type="tel"], #new_form input[type="email"], #new_form input[type="text"], #new_form textarea, #new_form select {
+  width: 315px;
+  font-size: 14px;
+  font-family: "游ゴシック", "Yu Gothic", YuGothic, "Hiragino Kaku Gothic ProN", "Hiragino Kaku Gothic Pro", "メイリオ", Meiryo, "ＭＳ ゴシック", sans-serif;
+  box-sizing: border-box;
+  padding: .5rem;
+  border: solid 1px #eee;
+  border-radius: 3px;
+  font-size: 1rem
+}
+
+#new_form input[type="file"] {
+  font-size: 14px;
+  background: 0;
+  padding-left: 0;
+  padding-right: 0;
+  border: 0
+}
+
+#new_form th, #new_form td {
+  vertical-align: top;
+  text-align: left;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: .8rem;
+  background-color: #fff;
+  border: solid 1px #ddd
+}
+
+#new_form th {
+  background-color: #fff6eb;
+  white-space: nowrap;
+  padding-right: 1.6rem
+}
+
+#new_form th span {
+  color: #DC241F;
+  font-weight: bold;
+  font-size: 12px
+}
+
+#new_form #submit {
+  margin-top: 40px;
+  border-radius: 2px;
+  border: 0;
+  border-bottom: solid 3px #235d88;
+  background-color: #3482bc;
+  color: #fff;
+  font-size: 1.8rem;
+  box-sizing: border-box;
+  padding: .8rem 3rem;
+  cursor: pointer
+}
+
+.s_cat, .input_img {
+  display: none
+}

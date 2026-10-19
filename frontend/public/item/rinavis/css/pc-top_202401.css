@@ -1,0 +1,511 @@
+@charset "utf-8";
+
+/* PC版TOPページ(2024年1月SEO施策による変更分)のCSS */
+/* 選ばれる理由ブロック */
+.is-small {
+  font-size: 14px;
+  margin-bottom: 15px;
+}
+
+.bg-blue {
+  background: rgba(30, 198, 212, 0.1);
+}
+
+.txt-orange {
+  color: #f78c15;
+  font-weight: 700;
+}
+
+.date-org {
+  display: inline-block;
+  color: #fff;
+  background-color: #f78c15;
+  padding: 5px 10px;
+  border-radius: 20px;
+  margin-bottom: 5px;
+}
+
+.pc-top-reason_item {
+  padding: 40px 0 60px;
+
+}
+
+.pc-top-reason_content {
+  padding-left: 13%;
+}
+
+.pc-top-reason_title figure {
+  margin-left: 0;
+}
+
+.pc-top-reason_title,
+.pc-top-reason_txt {
+  margin-bottom: 15px;
+}
+
+.pc-top-reason_txt,
+.pc-top-reason01_item p,
+.pc-top-pricelist .pc-top-pricelist_tabs,
+.top-faq_items .top-faq_item_ttl,
+.top-faq_items .top-faq_item_body {
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+.pc-top-reason_item .pc-top-reason_title {
+  border: 0;
+  display: flex;
+  align-items: baseline;
+  padding: 20px 0;
+  font-size: 25px;
+}
+
+.pc-top-reason_item .pc-top-reason_title > .txt-orange {
+  font-size: 40px;
+}
+
+.pc-top-reason_item .pc-top-reason_title_01::before {
+  content: "01";
+}
+
+.pc-top-reason_item .pc-top-reason_title_02::before {
+  content: "02";
+}
+
+.pc-top-reason_item .pc-top-reason_title_03::before {
+  content: "03";
+}
+
+.pc-top-reason_item .pc-top-reason_title_01::before,
+.pc-top-reason_item .pc-top-reason_title_02::before,
+.pc-top-reason_item .pc-top-reason_title_03::before {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #0098ae;
+  color: #fff;
+  min-width: 80px;
+  height: 80px;
+  border-radius: 80px;
+  margin-right: 10px;
+  font-size: 1.5em;
+}
+
+.pc-top-reason_items .pc-top-reason01_items {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.pc-top-reason_items .pc-top-reason01_items .pc-top-reason01_item {
+  background: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  width: 32%;
+}
+
+.pc-top-reason_items .pc-top-reason01_items .pc-top-reason01_item figure {
+  margin: 0 auto 10px;
+  width: 80%;
+}
+
+.pc-top-reason_items .pc-top-reason01_items .pc-top-reason01_item div {
+  flex: 1;
+  height: 100%;
+  min-height: 0%;
+}
+
+.pc-top-reason_items .pc-top-reason01_items .pc-top-reason01_item h4 {
+  text-align: center;
+  color: #0097ac;
+  /* font-size: 2.1em; */
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 15px;
+}
+
+
+/* ビフォーアフターブロック */
+.pc-top-before-after_items {
+  margin: 60px 0;
+}
+
+.pc-top-before-after_items ul {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.pc-top-before-after_items .pc-top-before-after_item h3 {
+  font-size: 30px;
+  font-weight: 500;
+  color: #36ccda;
+  margin: 0 40px 15px;
+}
+.pc-top-before-after_items .pc-top-before-after_item h3 > span {
+  display: inline-block;
+  padding-right: 10px;
+  margin-right: 10px;
+  position: relative;
+}
+.pc-top-before-after_items .pc-top-before-after_item h3 > span::after {
+  content: "";
+  display: inline-block;
+  width: 2px;
+  height: 35px;
+  background-color: #36CCDA;
+  position: absolute;
+  top:0;
+  right: 0;
+}
+
+.pc-top-before-after_items .pc-top-before-after_item {
+  margin-bottom: 30px;
+}
+
+
+/* お客様の声ブロック */
+.rn-voice {
+  border-top: 1px solid #CECECE;
+}
+
+/* ご注文の流れブロック */
+.rn-flow {
+  border-top: 1px solid #CECECE;
+}
+
+/* リナビスの安心保証ブロック */
+.pc-top-warranty_items {
+  padding: 60px 0;
+  border-top: 1px solid #CECECE;
+}
+
+.pc-top-warranty_items p {
+  margin-top: 5px;
+}
+
+.pc-top-warranty_items .pc-top-reason_txt u {
+  font-weight: 700;
+}
+
+/* 会員様のお得なサービスブロック */
+.pc-top-member_advantages {
+  padding: 60px 0;
+  border-top: 1px solid #CECECE;
+}
+
+.pc-top-member_advantages .pc-top-member_items {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.pc-top-member_advantages .pc-top-member_items .pc-top-member_item {
+  filter: drop-shadow(0px 0px 5px rgba(160, 160, 160, 0.5));
+  margin-bottom: 20px;
+  width: 48.948%;
+  min-height: 170px;
+  display: flex;
+  border-radius: 10px;
+  justify-content: space-between;
+}
+
+.pc-top-member_advantages .pc-top-member_items .pc-top-member_item .pc-top-member_item_idx {
+  width: 30%;
+  background-color: #efefef;
+  text-align: center;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px 0 0 10px;
+}
+
+.pc-top-member_advantages .pc-top-member_items .pc-top-member_item .pc-top-member_item_idx>img {
+  vertical-align: bottom;
+  max-width: 70%;
+  height: auto;
+}
+
+.pc-top-member_advantages .pc-top-member_items .pc-top-member_item .pc-top-member_item_body {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0;
+  padding: 20px;
+  width: calc(100% - 30%);
+  font-size: 16px;
+  text-align: left;
+  background: #fff;
+  border-radius: 0 10px 10px 0;
+  line-height: 1.5;
+}
+
+
+/* 料金表ブロック */
+.pc-top-pricelist {
+  padding: 60px 0;
+  border-top: 1px solid #CECECE;
+}
+
+.pc-top-pricelist_tabs {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.pc-top-pricelist_tabs .tab_label {
+  color: #36CCDA;
+  font-weight: bold;
+  border: solid 2px #36CCDA;
+  position: relative;
+  z-index: 1;
+  cursor: pointer;
+  padding: 5px 15px;
+  margin: 0 5px 20px;
+  border-radius: 50px;
+}
+
+.pc-top-pricelist_tabs .tab_label:hover {
+  opacity: 0.75;
+}
+
+.pc-top-pricelist_tabs .tab_content {
+  flex: 100%;
+  display: none;
+  overflow: hidden;
+}
+
+.pc-top-pricelist_tabs input[name="tab_switch"] {
+  display: none;
+}
+
+.pc-top-pricelist_tabs input:checked+.tab_label {
+  color: #fff;
+  background-color: #36CCDA;
+}
+
+#tab01_irui:checked~#tab01_content,
+#tab02_irui-reform:checked~#tab02_content,
+#tab03_futon:checked~#tab03_content,
+#tab04_leather:checked~#tab04_content,
+#tab05_zakka:checked~#tab05_content {
+  display: block;
+}
+
+.pc-top-pricelist_tabs .tab_content {
+  position: relative;
+  animation: fadeIn 1s ease;
+}
+
+ul.price_list {
+  list-style: none;
+  column-count: 2;
+  column-gap: 10px;
+  padding: 0;
+}
+
+ul.price_list li a {
+  display: inline-flex;
+  padding: 10px 20px;
+  border-bottom: 2px solid #fff;
+  width: 100%;
+  background-color: rgba(30, 198, 212, 0.1);
+  justify-content: space-between;
+  color: #484848;
+}
+
+ul.price_list li a:hover {
+  background-color: rgba(30, 198, 212, 0.5);
+  text-decoration: none;
+}
+
+ul.price_list li a strong {
+  font-weight: normal;
+  margin-right: auto;
+}
+
+ul.price_list li a .price {
+  color: #0097ac;
+  font-weight: 500;
+}
+
+ul.price_list li a .price-small {
+  font-size: 0.6em;
+}
+
+/* せんたくのーとブロック */
+.rn-sentakunote {
+  padding: 40px 0 60px;
+  border-top: 1px solid #CECECE;
+}
+
+/* リナビスブログブロック */
+.rn-blog {
+  padding: 40px 0 60px;
+  border-top: 1px solid #CECECE;
+}
+
+
+/* よくある質問ブロック */
+.top-faq_items {
+  background: #EFEFEF;
+  padding: 60px 0;
+}
+
+.top-faq_items .top-faq_item_parent {
+  margin-bottom: 20px;
+}
+
+.top-faq_items .top-faq_item {
+  background: #ffffff;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  padding: 0 20px;
+}
+
+.top-faq_items .top-faq_item p {
+  margin: 0;
+}
+
+.top-faq_items .top-faq_item_ttl {
+  font-weight: 500;
+  position: relative;
+  border: 0;
+  display: flex;
+  align-items: center;
+  padding: 20px 40px 20px 0;
+  cursor: pointer;
+}
+
+
+.top-faq_items .top-faq_item_ttl::before {
+  content: "Q";
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #36CCDA;
+  color: #fff;
+  min-width: 38px;
+  height: 38px;
+  border-radius: 50px;
+  margin-right: 10px;
+}
+
+.top-faq_items .top-faq_item_ttl::after {
+  content: "";
+  width: 24px;
+  height: 24px;
+  background: url('/item/rinavis/img/common/ico_open.svg') no-repeat center /contain;
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: .3s;
+}
+
+.top-faq_items .top-faq_item_ttl.is-active::after {
+  content: "";
+  background: url('/item/rinavis/img/common/ico_close.svg') no-repeat center /contain;
+  transform: translateY(-50%) rotate(-180deg);
+}
+
+.top-faq_items .top-faq_item .top-faq_item_body {
+  position: relative;
+  border: 0;
+  display: flex;
+  align-items: center;
+  padding: 20px 40px 20px 0;
+  border-top: 1px solid #ccc;
+}
+
+.top-faq_items .top-faq_item .top-faq_item_body::before {
+  content: "A";
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f78c15;
+  color: #fff;
+  min-width: 38px;
+  height: 38px;
+  border-radius: 50px;
+  margin-right: 10px;
+}
+
+
+/* 法人向けブロック */
+.top-corporation_content {
+  background-color: #eeeeee;
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 25px 60px;
+  color: #484848;
+}
+
+.top-corporation_content .top-corporation_txt_body {
+  text-align: left;
+}
+
+.top-corporation_content .top-corporation_subttl {
+  background-color: #003382;
+  color: #fff;
+  padding: 10px;
+  font-size: 16px;
+  display: inline-block;
+  margin-bottom: 0;
+}
+
+.top-corporation_content .top-corporation_ttl {
+  font-size: 28px;
+  font-weight: 500;
+  padding: 20px 0;
+}
+
+.top-corporation_content .top-corporation_txt {
+  font-size: 15px;
+  border-top: 2px solid #484848;
+  padding-top: 15px;
+}
+
+
+/* ご注意事項ブロック */
+.top-attention {
+  background: #EFEFEF;
+  padding: 60px 0;
+  border-bottom: 1px solid #CECECE;
+}
+
+.top-attention .is-small {
+  font-size: 12px;
+}
+
+.top-attention .top-attention_inner {
+  background-color: #fff;
+  border-radius: 10px;
+  padding: 30px 20px;
+}
+
+.top-attention .top-attention_body_subttl {
+  background: #EFEFEF;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 12px 15px;
+  margin-bottom: 10px;
+}
+
+.top-attention .top-attention_item {
+  margin-bottom: 20px;
+}
+
+.top-attention .top-attention_item:last-child {
+  margin-bottom: 0;
+}
+
+.top-attention .top-attention_item p {
+  font-size: 14px;
+}

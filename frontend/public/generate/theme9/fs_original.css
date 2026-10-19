@@ -1,0 +1,1873 @@
+p {
+  margin: .5rem auto 1rem auto;
+}
+
+h2, h3, h4 {
+  margin: 1.5rem auto 1rem auto;
+}
+
+[type="hidden"], [type="text"], [type="search"], [type="tel"], [type="url"], [type="email"], [type="password"], [type="datetime"], [type="date"], [type="month"], [type="week"], [type="time"], [type="datetime-local"], [type="number"], select, textarea {
+  padding: 5px 10px;
+}
+
+img {
+  vertical-align: bottom
+}
+
+button {
+  background-color: transparent;
+  border: 0;
+  cursor: pointer;
+  outline: 0;
+  padding: 0;
+  appearance: none;
+  text-decoration: none;
+  display: inline-block;
+  margin: 1rem auto;
+  box-sizing: border-box;
+}
+
+/* .fs-clientInfo .log.my-true,
+.fs-clientInfo .my.my-false,
+.logout.my-false {
+  display: none;
+} */
+
+.sp-only {
+  display: none !important;
+}
+
+.clearbox::after {
+  content: '';
+  clear: both;
+  display: block;
+}
+
+.fs-clientInfo.is-ready {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.fs-c-breadcrumb__list {
+  font-size: 12px;
+}
+
+.fs-c-button__label {
+  display: inline-block;
+  box-sizing: border-box;
+  padding: .5rem 2rem;
+  border-radius: .3rem;
+  background-color: #ffb400;
+  border-bottom: solid 3px #c48b03;
+  color: #fff;
+  text-decoration: none;
+  font-weight: bold
+}
+
+.fs-client-cart-count {
+  display: inline-block;
+  vertical-align: baseline;
+  margin-left: 3px;
+  background-color: #ffb400;
+  color: #fff;
+  box-sizing: border-box;
+  line-height: 1;
+  border-radius: 20px;
+  padding: 3px 5px;
+}
+
+.fs-c-orderTotalTable th, .fs-c-orderTotalTable td {
+  padding: .3rem .5rem
+}
+
+table th {
+  background-color: #fff6eb;
+  font-weight: bold;
+  box-sizing: border-box;
+  padding: 8px 16px !important
+}
+
+table td {
+  box-sizing: border-box;
+  padding: 8px 16px !important
+}
+
+.fs-c-buttonContainer.fs-c-buttonContainer--memberRegister {
+  margin-top: 30px;
+  text-align: center
+}
+
+.fs-c-button--memberRegister.fs-c-button--primary {
+  margin: 1rem auto;
+  padding: .5rem 2rem;
+}
+
+.OGfr {
+  float: right
+}
+
+#side {
+  float: left;
+  width: 200px;
+  margin-right: 30px
+}
+
+main.fs-l-main {
+  position: relative;
+  width: 960px;
+  margin: 0 auto;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 30px 0
+}
+
+#fs-checkout-amazon-container,
+.fs-c-productList__controller .fs-c-sortItems,
+.fs-c-productList .fs-c-productList__controller,
+.fs-c-orderHistoryItem__body, .fs-c-orderHistoryItem__header__button, .fs-c-accountService, .fs-c-returnedSpecialContract, .fs-c-continueShopping, .fs-c-cartTable__message, .fs-c-button--displayPassword.fs-c-button--particular, .fs-c-productQuantityAndWishlist, .fs-c-productMainImage__expandButton, .fs-c-productPointDisplay, .fs-c-productThumbnail, .fs-c-productPreorderMessage, .fs-c-productMarks, .fs-c-productPrices, .fs-c-productNameHeading, .fs-c-productPostage{
+  display: none !important
+}
+
+.fs-c-orderTotalTable {
+  margin: 0 0 0 auto;
+}
+
+.fs-c-cartPayment__button {
+  text-align: center;
+}
+
+.OgWapper, .fs-body-product #fs_form {
+  width: 730px;
+  float: left
+}
+
+.OgWapper h2 {
+  font-size: 1.2em;
+  background: url(/item/ssl/img/h2_underline.jpg);
+  line-height: 2;
+  padding: 0 0 0 46px;
+  color: #fff;
+  margin: 0 auto 1.5rem auto
+}
+
+.OgWapper h2.deconone {
+  background: 0;
+  padding: 0;
+  margin-bottom: 0;
+  height: 100%
+}
+
+.OgWapper h3 {
+  font-size: 1.2em;
+  color: #523d18;
+  margin-bottom: 20px
+}
+
+.OgWapper p {
+  line-height: 1.8em
+}
+
+.OgWapper .colorRED {
+  color: #bc2c29
+}
+
+.OgWapper .colorBLUE {
+  color: #428cbc
+}
+
+.OgWapper table td.corpTitCel {
+  color: #4f412c;
+  background: #e9e3d9;
+  width: 140px;
+  height: 40px;
+  padding-left: 10px;
+  vertical-align: middle;
+  border: #d0c8ba 1px solid
+}
+
+.OgWapper table td.corpTitCel02 {
+  color: #4f412c;
+  background: #fff;
+  width: 530px;
+  height: 40px;
+  padding-left: 10px;
+  vertical-align: middle;
+  border-top: #d0c8ba 1px solid;
+  border-right: #d0c8ba 1px solid;
+  border-bottom: #d0c8ba 1px solid
+}
+
+.OgWapper .blueBox {
+  width: 330px;
+  border: 1px solid #83a6c4;
+  border-radius: 6px;
+  -webkit-border-radius: 6px;
+  -moz-border-radius: 6px;
+  padding: 10px;
+  font-size: .9em;
+  background: #fff
+}
+
+.OgWapper .courseListBox {
+  background: url(/item/ssl/img/course/course_bg.jpg);
+  padding: 24px 24px
+}
+
+.OgWapper .OGwd380 {
+  width: 380px
+}
+
+.OgWapper .guideBox01 p {
+  width: 371px
+}
+
+.OgWapper .guideBox03 .guideInnerBox {
+  height: 202px;
+  width: 407px
+}
+
+.OgWapper .guideBox04 p {
+  width: 430px
+}
+
+.OgWapper .guideBox07 p {
+  width: 320px
+}
+
+.OgWapper p.OGwd420 {
+  width: 420px
+}
+
+.OgWapper p.OGwd410 {
+  width: 410px
+}
+
+.OgWapper .guideBox12 tr {
+  border: 1px solid #ccc
+}
+
+.OgWapper .guideBox12 td {
+  width: 700px;
+  padding: 10px
+}
+
+.OgWapper .guideBox12 td.guide12Bg {
+  background: #fff
+}
+
+.tbl_bank {
+  border-top: 1px solid #bbb;
+  border-left: 1px solid #bbb;
+  border-right: 1px solid #bbb;
+  border-bottom: 0;
+  border-collapse: collapse;
+  width: 300px
+}
+
+.tbl_bank th {
+  background: #fff;
+  padding: 5px;
+  border-right: 1px solid #bbb;
+  border-bottom: 1px solid #bbb
+}
+
+.tbl_bank td {
+  background: transparent;
+  padding: 5px;
+  border-bottom: 1px solid #bbb
+}
+
+.guideSideNav {
+  border: 1px solid #e9d9bd;
+  width: 200px;
+  position: fixed;
+  bottom: 20px;
+  right: 0;
+  background: #fff;
+  padding: 0 5px 10px 0
+}
+
+.guideSideNav img a {
+  padding: 3px 0
+}
+
+.OgWapper .craftsmanlistBox {
+  background: url(/item/ssl/img/craftsmanlist/craftsmanlist_img03.jpg);
+  height: 524px
+}
+
+.OgWapper .craftsmanlistBox li {
+  display: inline;
+  margin-right: 6px
+}
+
+.OgWapper .OGwd330 {
+  width: 330px
+}
+
+.OgWapper .TXTlarge {
+  font-size: 1.3em;
+  font-weight: bold
+}
+
+.OgWapper .craftsmanlistBox02 {
+  background: url(/item/ssl/img/craftsmanlist/craftsman_list02.jpg) repeat-y;
+  height: 600px
+}
+
+.OgWapper .craftsmanlistBox02 li {
+  display: inline;
+  margin-right: 6px
+}
+
+.OgWapper ul.clean_udbtn li {
+  margin-right: 11px;
+  display: inline
+}
+
+.OgWapper ul.clean_udbtn li:last-child {
+  margin-right: 0
+}
+
+.OgWapper .cleaningTablist li {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  width: 146px
+}
+
+.OgWapper .cleaningTablist img {
+  vertical-align: bottom
+}
+
+.OgWapper .OGwd450 {
+  width: 450px
+}
+
+.OgWapper .OGwd460 {
+  width: 460px
+}
+
+.OgWapper .bg_white {
+  background: #fff;
+  padding: 0 15px 30px
+}
+
+.OgWapper .bg_brown {
+  background: #f6f4f0;
+  padding: 0 15px 30px
+}
+
+.OgWapper .limitationBg {
+  background: url(/item/ssl/img/cleaning/limitation_bg.png)
+}
+
+.OgWapper .limitationBg p {
+  padding: 20px 30px
+}
+
+.OgWapper .OGwd420 {
+  width: 420px
+}
+
+.OgWapper .OGwd440 {
+  width: 440px
+}
+
+.OgWapper .passionBg {
+  background: url(/item/ssl/img/cleaning/passion_bg.png);
+  padding: 15px 20px 30px
+}
+
+.OgWapper label {
+  display: block;
+  border-top: 1px solid #d2d2d2;
+  border-right: 1px solid #d2d2d2;
+  border-left: 1px solid #d2d2d2;
+  background: #fff;
+  font-weight: bold;
+  font-size: 13px
+}
+
+.OgWapper .lastliBox {
+  border-bottom: 1px solid #d2d2d2
+}
+
+.OgWapper label img {
+  vertical-align: middle
+}
+
+.OgWapper input[type="checkbox"].on-off {
+  display: none
+}
+
+.OgWapper .qandaMenu ul {
+  -webkit-transition: all .5s;
+  -moz-transition: all .5s;
+  -ms-transition: all .5s;
+  -o-transition: all .5s;
+  transition: all .5s;
+  margin: 0;
+  padding: 0;
+  list-style: none
+}
+
+.OgWapper input[type="checkbox"].on-off+ul {
+  display: none;
+  padding: 10px
+}
+
+.OgWapper input[type="checkbox"].on-off:checked+ul {
+  background: #fff0f0;
+  border: 1px solid #d2d2d2;
+  display: block
+}
+
+.OgWapper .qandaMenu ul li {
+  padding: 20px 0
+}
+
+.OgWapper .corpBg {
+  background: url(/item/ssl/img/corporation/corp_img02.png);
+  height: 380px;
+  padding: 30px
+}
+
+.OgWapper .corpBg p {
+  font-size: 1.1em
+}
+
+.OgWapper .privacyBox {
+  border: #e9e3d9 1px solid;
+  padding: 20px;
+  margin-bottom: 40px;
+  background: #fff
+}
+
+.OgWapper .InnerprivacyBox {
+  border: #e9e3d9 1px solid;
+  padding: 20px;
+  background: #fff;
+  margin-top: 5px
+}
+
+.OgWapper .TxtIndent {
+  padding-left: 20px;
+  text-indent: -20px
+}
+
+.OgWapper ul.siteMapBox li {
+  padding: 20px 0 24px 15px;
+  border-top: #8fc8ec 1px dotted;
+  border-left: #8fc8ec 1px dotted;
+  border-right: #8fc8ec 1px dotted
+}
+
+.OgWapper ul.siteMapBox li:last-child {
+  border-bottom: #8fc8ec 1px dotted
+}
+
+.OgWapper ul.siteMapBox li a {
+  padding-left: 15px;
+  color: #4e412c
+}
+
+.OgWapper ul.InnersiteBox {
+  margin-right: 15px;
+  padding: 20px 10px;
+  background: #ecf5fa;
+  border-radius: 10px;
+  -webkit-border-radius: 10px;
+  -moz-border-radius: 10px
+}
+
+.OgWapper ul.InnersiteBox li {
+  border: 0;
+  display: inline-block;
+  width: auto;
+  padding: 0
+}
+
+.OgWapper ul.InnersiteBox li a {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: .5rem;
+  padding-left: 0
+}
+
+.OgWapper ul.InnersiteBox li:last-child {
+  border-bottom: 0
+}
+
+#FS2_body_Member .inputTableArea table.userTable_01 {
+  background: url(/item/ssl/img/mmship_bg.png);
+  width: 730px;
+  height: 200px;
+  margin-top: 10px;
+  margin-bottom: 0;
+  border: 0;
+  position: relative
+}
+
+.OgWapper .ligthBox {
+  position: relative;
+  display: none;
+  width: 730px;
+  height: 800px
+}
+
+.fancybox-wrap, .fancybox-outer, .fancybox-inner {
+  width: 745px !important
+}
+
+.OgWapper .mailform_ p {
+  padding: 30px 30px 0;
+  font-size: 1.1em
+}
+
+.OgWapper .mailform_ img {
+  padding-top: 30px;
+  padding-right: 30px
+}
+
+.OgWapper .mailform_m {
+  background: url(/item/ssl/img/inquiry_bg.jpg) no-repeat;
+  height: 730px;
+  width: 730px;
+  padding-bottom: 80px
+}
+
+.OgWapper .mailform_m form {
+  padding: 110px 0 0 40px
+}
+
+.OgWapper .mailform_m form p {
+  padding-bottom: 20px
+}
+
+.txt-c {
+  text-align: center
+}
+
+.OgWapper .mailform_m {
+  background: 0
+}
+
+.OgWapper .mailform_m form {
+  padding: 0
+}
+
+.select-wrap {
+  padding-bottom: 20px
+}
+
+.select-wrap p {
+  padding: 0 !important;
+  display: inline-block;
+  vertical-align: top;
+  margin-right: 20px
+}
+
+.cp_ipselect {
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: top
+}
+
+.cp_ipselect select {
+  border: 0 !important;
+  width: 100%;
+  padding-right: 1em;
+  cursor: pointer;
+  text-indent: .01px;
+  text-overflow: ellipsis;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  background-image: none;
+  box-shadow: none;
+  -webkit-appearance: none;
+  appearance: none
+}
+
+.cp_ipselect select::-ms-expand {
+  display: none
+}
+
+.cp_ipselect.cp_sl01 {
+  position: relative;
+  border: solid 1px #eee;
+  border-radius: 2px;
+  background: #fff
+}
+
+.cp_ipselect.cp_sl01::before {
+  position: absolute;
+  top: 1.3em;
+  right: .9em;
+  width: 0;
+  height: 0;
+  padding: 0;
+  content: '';
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid #666;
+  pointer-events: none
+}
+
+.cp_ipselect.cp_sl01 select {
+  padding: 8px 38px 8px 8px
+}
+
+#new_form table {
+  border-collapse: collapse;
+  width: 100%
+}
+
+#new_form input, #new_form textarea {
+  border: solid 1px #bbb;
+  box-sizing: border-box;
+  padding: .3rem .8rem;
+  border-radius: 2px;
+  background-color: #fff
+}
+
+#new_form input[type="tel"], #new_form input[type="email"], #new_form input[type="text"], #new_form textarea, #new_form select {
+  width: 315px;
+  font-size: 14px;
+  font-family: "游ゴシック", "Yu Gothic", YuGothic, "Hiragino Kaku Gothic ProN", "Hiragino Kaku Gothic Pro", "メイリオ", Meiryo, "ＭＳ ゴシック", sans-serif;
+  box-sizing: border-box;
+  padding: .5rem;
+  border: solid 1px #eee;
+  border-radius: 3px;
+  font-size: 1rem
+}
+
+#new_form input[type="file"] {
+  font-size: 14px;
+  background: 0;
+  padding-left: 0;
+  padding-right: 0;
+  border: 0
+}
+
+#new_form th, #new_form td {
+  vertical-align: top;
+  text-align: left;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: .8rem;
+  background-color: #fff;
+  border: solid 1px #ddd
+}
+
+#new_form th {
+  background-color: #fff6eb;
+  white-space: nowrap;
+  padding-right: 1.6rem
+}
+
+#new_form th span {
+  color: red;
+  font-weight: bold;
+  font-size: 12px
+}
+
+#new_form #submit {
+  margin-top: 40px;
+  border-radius: 2px;
+  border: 0;
+  border-bottom: solid 3px #235d88;
+  background-color: #3482bc;
+  color: #fff;
+  font-size: 1.2rem;
+  box-sizing: border-box;
+  padding: .8rem 3rem;
+  cursor: pointer
+}
+
+.s_cat, .input_img {
+  display: none
+}
+
+.mb-3 {
+  margin-bottom: 3rem
+}
+
+.info-deri {
+  margin: 3rem auto
+}
+
+.info-deri h3 {
+  font-weight: bold;
+  margin: 0 auto 1rem auto
+}
+
+.info-deri b {
+  color: #f00;
+  font-weight: bold
+}
+
+.itemTitle, .itemNumber, .FS2_itemPrice_area, .FS2_point {
+  display: none
+}
+
+.info-deri .btn {
+  display: inline-block;
+  margin: 1rem 0;
+  box-sizing: border-box;
+  padding: .5rem 2rem;
+  border-radius: .3rem;
+  background-color: #0080c0;
+  border-bottom: solid 3px #046291;
+  color: #fff;
+  text-decoration: none;
+  font-weight: bold
+}
+
+.fs-c-button--addToCart--detail {
+  display: block;
+  margin: 0 auto
+}
+
+.ac-inner {
+  display: none
+}
+
+.ac {
+  margin-bottom: 1rem
+}
+
+.ac h3 {
+  position: relative;
+  cursor: pointer
+}
+
+.ac h3::after {
+  content: '＋';
+  font-size: 2rem;
+  font-weight: bold;
+  color: #0080c0;
+  position: absolute;
+  right: 10px;
+  top: 0;
+  z-index: 1
+}
+
+.ac h3.active::after {
+  content: 'ー'
+}
+
+.fs-c-inputTable th {
+  padding: .8rem;
+  border: solid 1px #ddd;
+  background-color: #fff6eb
+}
+
+.fs-c-inputTable td {
+  padding: .8rem;
+  border: solid 1px #ddd;
+  background-color: #fff
+}
+
+.fs-c-inputTable__headerCell {
+  text-align: left
+}
+
+.fs-c-requiredMark::before {
+  color: #DC241F;
+}
+
+.fs-c-fsLogin, .fs-c-newUsers.fs-c-subSection {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  clear: both
+}
+
+.fs-c-fsLogin {
+  text-align: center;
+  margin-bottom: 30px /*2021/11/17 60pxより変更*/
+}
+
+.fs-c-fsLoginField .fs-c-inputTable {
+  margin: 0 auto
+}
+
+.fs-c-subSection__title {
+  font-size: 1.8rem;
+  padding-bottom: 1rem;
+  border-bottom: solid 2px #ffb400;
+  margin: 0 auto 1.6rem auto
+}
+
+.FS2_body_Goods_GoodsDetail .itemCatchCopy {
+  font-size: 16px;
+  color: #000;
+  display: block;
+}
+
+.FS2_Preorder_icon, p.sellTerms {
+  display: none
+}
+
+.mailform_m input, .mailform_m textarea {
+  background: #fff6ee
+}
+
+.cartTable {
+  margin-top: 10px
+}
+
+.FS2_pagerTable_area_input {
+  margin-top: -5px !important
+}
+
+.FS2_mypage_Entry_table input {
+  margin-top: -8px !important
+}
+
+.cartTable th {
+  font-weight: 800
+}
+
+.cartTable th, .cartTable td {
+  padding: 8px
+}
+
+.s_pageup {
+  position: fixed;
+  bottom: 15px;
+  right: 20px;
+  z-index: 999
+}
+
+.pageTitle {
+  background: url(../img/common/titlebar.png);
+  padding: 23px 0 27px 10px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  font-size: 16px;
+  color: #9d8a64
+}
+
+ul.common_menu {
+  position: relative
+}
+
+ul.common_menu li {
+  float: left;
+  width: 46%;
+  height: 120px;
+  padding: 2%
+}
+
+ul.common_menu li img {
+  float: left;
+  margin-right: 10px
+}
+
+ul.common_menu a {
+  text-decoration: none;
+  color: #9d8a64
+}
+
+ul.common_menu a:hover {
+  color: #9d8a64
+}
+
+ul.common_menu li h4 {
+  font-weight: 800;
+  font-size: 16px
+}
+
+ul.common_menu li p {
+  font-size: 12px
+}
+
+ul.common_menumy {
+  position: relative
+}
+
+ul.common_menumy li {
+  height: 100px;
+  display: block;
+  padding: 2%
+}
+
+ul.common_menumy li img {
+  float: left;
+  margin-right: 10px
+}
+
+ul.common_menumy a {
+  text-decoration: none;
+  color: #9d8a64
+}
+
+ul.common_menumy a:hover {
+  color: #9d8a64
+}
+
+ul.common_menumy li h4 {
+  font-weight: 800;
+  font-size: 16px
+}
+
+ul.common_menumy li p {
+  font-size: 12px
+}
+
+#top .top_course, #top div {
+  margin-bottom: 20px
+}
+
+#top .top_course h2 {
+  margin-bottom: 25px
+}
+
+#top .top_course ul li {
+  float: left
+}
+
+#top .top_course ul li+li {
+  margin-left: 12px
+}
+
+.kai img {
+  max-width: 100%;
+  height: auto;
+  margin-top: 20px
+}
+
+#fs-couponInfo-container>div,
+#fs-deliveryInfo-container>div, #fs-buyerInfo-container>div, #fs-addressInfo-container>div, #fs-paymentList-container>div, #fs-pointInfo-container>div, #fs-excluded-container>div, #fs-cancel-container>div, #fs-limit-container>div {
+  margin-bottom: 2rem;
+  box-sizing: border-box;
+  padding: 1.6rem;
+  background-color: #fff;
+  border-radius: .5rem;
+  border: solid #eee;
+}
+
+.fs-c-checkout-preview__title {
+  font-size: 19px;
+  font-weight: bold;
+  padding-bottom: 10px;
+  border-bottom: solid 2px #ffb400;
+  margin: 2rem auto 1.6rem auto;
+}
+
+.fs-c-confirmOrder {
+  text-align: center;
+}
+
+.fs-c-button--confirmOrder {
+  margin-top: 2rem;
+}
+
+.fs-c-button--confirmOrder .fs-c-button__label {
+  font-size: 2rem;
+  padding: .8rem 3rem;
+}
+
+.fs-c-checkout-confirmationList {
+  display: block;
+}
+
+.btn-delivery {
+  display: inline-block;
+  vertical-align: middle;
+  color: #fff !important;
+  background-color: #ea5532;
+  box-sizing: border-box;
+  padding: 20px 0;
+  width: 700px;
+  font-size: 1.7rem;
+  font-weight: bold;
+  line-height: 1;
+  margin-top: 40px;
+}
+
+.guide-btn {
+  position: relative;
+  clear: both;
+  display: inline-block;
+  vertical-align: middle;
+  box-sizing: border-box;
+  background-color: #0080c0;
+  color: #fff !important;
+  font-weight: bold;
+  font-size: 2rem;
+  border-radius: .5rem;
+  padding: .8rem 3rem;
+  border-bottom: solid 3px #035781;
+  transition: .3s;
+  margin: 1rem auto;
+}
+
+.guide-btn i {
+  margin-right: 5px;
+}
+
+.guide-btn:hover {
+  opacity: .8
+}
+
+.fs-body-register #fs_form, .fs-c-inputInformation__message {
+  text-align: center;
+}
+
+.fs-body-register .fs-c-inputTable {
+  margin: 1rem auto 0 auto;
+}
+
+.fs-c-privacyPolicyAgreeField {
+  margin: 1em auto;
+}
+
+.top_course ul {
+  overflow: hidden;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.top_course ul li {
+  display: inline-block;
+  vertical-align: top;
+}
+
+.fs-c-productActionButton {
+  margin-bottom: 60px;
+}
+
+.guideBox04 {
+  overflow: hidden;
+}
+
+.OgWapper .txt-c {
+  clear: both;
+}
+
+.fs-body-forgotPassword main {
+  text-align: center;
+}
+
+.fs-body-forgotPassword .fs-c-inputTable {
+  margin: 2rem auto;
+}
+
+.clean_udbtn {
+  margin-top: 30px;
+  clear: both;
+}
+
+.OgWapper th label {
+  border: 0;
+  background: transparent
+}
+
+#fs_MyOrders .fs-c-buttonContainer, #fs_MyOrders .delivery-confirm_btn {
+  display: inline-block;
+  vertical-align: middle;
+  margin: 10px 10px 30px 0;
+}
+
+.fs-c-buttonContainer--myPageTop {
+  margin-top: 40px;
+}
+
+.fs-c-pointSummary dt, .fs-c-pointSummary dd {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.fs-c-orderHistory dl {
+  margin: 1rem auto;
+}
+
+.fs-c-history__infoSummary {
+  margin-top: 20px;
+}
+
+.fs-c-orderHistoryItem__header {
+  border-top: solid 1px #bbb
+}
+
+.fs-c-breadcrumb ol {
+  display: block;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+#fs_MyAccountSettings .fs-c-inputTable {
+  width: 100%;
+}
+
+#fs_MyAccountSettings .fs-c-inputInformation__button, #fs_EditAccountSettings .fs-c-inputInformation__button {
+  text-align: center;
+  margin-top: 20px;
+}
+
+#fs_EditAccountSettings .OgWapper label {
+  border: 0;
+  display: inline-block;
+  font-weight: normal;
+}
+
+.ac-inner {
+  overflow: hidden;
+}
+
+.guideInnerBox {
+  margin-bottom: 20px
+}
+
+#futon-campaign-h2 {
+  margin: 1rem auto;
+  box-sizing: border-box;
+  padding: 1rem;
+  font-weight: bold;
+  font-size: 2rem;
+  text-align: center;
+  color: #444444;
+  text-shadow: 0 3px 3px rgba(0, 0, 0, 0.2);
+  background-image: repeating-linear-gradient(-45deg,
+    #ffe400, #ffe400 7.5px,
+    #fff6a6 0, #fff6a6 15px);
+  line-height: 1.5;
+}
+
+#fs_Checkout .fs-c-button--confirmOrder .fs-c-button__label {
+  background-color: #ff0000;
+  border-color: #cf0000;
+}
+
+.fs-c-modal__header {
+  box-sizing: border-box;
+  padding: 1rem 1rem 0 1rem
+}
+
+.fs-c-creditCardIcons li {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 5px;
+}
+
+.fs-c-button--cancel .fs-c-button__label {
+  background-color: #eee;
+  border-color: #ddd;
+  color: #000;
+  font-size: 1.4rem;
+  padding: .3rem 2rem;
+}
+
+.fs-c-modal__inner {
+  box-sizing: border-box;
+  padding: 10px;
+}
+
+.fs-c-productList__list {
+  text-align: center;
+}
+
+.fs-c-productList__list__item.fs-c-productListItem {
+  display: inline-block;
+  vertical-align: top;
+  width: 30%;
+  margin-bottom: 20px;
+}
+
+.fs-c-productListItem__preorderMessage.fs-c-preorderMessage,
+.fs-c-productListItem__salesPeriod.fs-c-salesPeriod,
+.fs-c-productList__list__item.fs-c-productListItem .fs-c-productListItem__viewMoreImageButton {
+  display: none;
+}
+
+.fs-c-productListItem__productName {
+  font-size: 1.4rem;
+  margin: 1em auto;
+}
+
+.fs-c-productList__list__item.fs-c-productListItem:nth-child(3n+2) {
+  margin-right: 1%;
+  margin-left: 1%;
+}
+
+.fs-c-purchaseHere.fs-c-cartPayment {
+  text-align: center;
+}
+
+.fs-c-dropdown__menu {
+  padding: 9px 3em 9px 8px;
+}
+
+.fs-c-cartPayment__button.fs-c-buttonContainer.fs-c-buttonContainer--loginAndPurchase,
+.fs-c-cartPayment__button.fs-c-buttonContainer.fs-c-buttonContainer--registerAndPurchase {
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0 5px;
+}
+
+.fs-body-customerDetails .fs-l-main {
+  width: 768px;
+}
+
+.fs-body-customerDetails .fs-c-memberInfoField table {
+  width: 100%;
+}
+
+.pass-remember {
+  display: inline-block;
+  vertical-align: middle;
+  background-color: #fff;
+  color: #333;
+  box-sizing: border-box;
+  padding: .5rem 1rem;
+  border-radius: .3rem;
+  font-size: 1.2rem;
+  border-bottom: solid 3px #ddd;
+}
+
+/* カートページの「小計」欄にテキストを追加 */
+.fs-body-cart .fs-c-cartTable__headerCell--subtotal::after {
+content: "（税込み）";
+}
+
+/* カートページの「商品合計」欄にテキストを追加
+.fs-body-cart .fs-c-orderTotalTable__mainRow .fs-c-string--label::after{
+content:"（税込み）";
+} */
+
+.rn-course_itemwrap {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.rn-course_item {
+  width: calc(25% - 60px/4);
+  margin-bottom: 20px;
+  transition: .3s;
+  position: relative;
+}
+.rn-course_item + .rn-course_item {
+  margin-left: 20px;
+}
+.rn-course_item_note {
+  font-size: 14px;
+  color: #222222;
+  margin-bottom: 0;
+  text-indent: -1em;
+  padding-left: 1em;
+  margin-top: 15px;
+}
+@media (max-width: 1259px) {
+  .rn-course_item_note {
+    font-size: 10px; 
+  }
+}
+.rn-course_item:after {
+  content: "";
+  width: 100%;
+  height: 100%;
+  background: #fff;
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  transition: .3s;
+}
+.rn-course_item:hover {
+  text-decoration: none;
+}
+.rn-course_item:hover:after {
+  opacity: .3;
+}
+
+#miles .slick-track {
+width:100% !important;
+margin-bottom: 10px;
+}
+
+/* 20250930 コースから選ぶ よくある質問 */
+.faq-section {
+  margin-bottom: 80px;
+}
+.faq-accordion {
+  margin-bottom: 25px;
+}
+.faq-accordion-q {
+  margin-right: 30px;
+}
+.faq-accordion summary {
+  display: flex;
+  align-items: center;
+  font-weight: bold;
+  position: relative;
+  list-style: none;
+  background: #0097ac;
+  color: #fff;
+  font-size: 22px;
+  line-height: 1.4;
+  cursor: pointer;
+  padding: 16px 72px 16px 33px;
+  text-indent: -1.5rem;
+}
+.faq-accordion summary::-webkit-details-marker {
+  display: none;
+}
+.faq-accordion summary::before {
+  content: "";
+  position: absolute;
+  right: 1.25em;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 37px;
+  height: 37px;
+  border: 1px solid #fff;
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+.faq-accordion summary::after {
+  content: "";
+  position: absolute;
+  right: 1.25em;
+  top: 50%;
+  transform: translateY(-50%) translateX(-50%);
+  width: 19px;
+  height: 1px;
+  background-color: #fff;
+  z-index: 1;
+}
+.faq-accordion summary span::before {
+  content: "";
+  position: absolute;
+  right: calc(1.25em + 18px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-50%);
+  width: 1px;
+  height: 19px;
+  background-color: #fff;
+  z-index: 1;
+}
+.faq-accordion[open] summary span::before {
+  opacity: 0;
+}
+.faq-accordion p {
+  opacity: 0;
+  margin: 0;
+  color: #333333;
+  position: relative;
+  font-size: 16px;
+}
+.faq-accordion[open] p {
+  transform: none;
+  opacity: 1;
+  margin-top: 1px;
+}
+.faq-accordion .answer {
+  position: relative;
+  padding: 10px 0 0 50px;
+}
+.faq-accordion .answer::before {
+  content: "A";
+  position: absolute;
+  left: 20px;
+  top: 10px;
+  font-weight: bold;
+  color: #0097ac;
+  font-size: 20px;
+  line-height: 1.4;
+}
+.faq-accordion .answer a {
+  text-decoration: underline;
+}
+@media (max-width: 767px) {
+  .faq-accordion-container {
+    margin-bottom: 30px;
+  }
+  .faq-accordion {
+    margin-bottom: 10px;
+  }
+  .faq-accordion summary,
+  .faq-accordion p {
+    font-size: 14px;
+  }
+  .faq-accordion summary {
+    padding: 17px 72px 17px 25px;
+  }
+  .faq-accordion summary::before {
+    content: "";
+    position: absolute;
+    right: 1.25em;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 27px;
+    height: 27px;
+    border: 1px solid #fff;
+    border-radius: 50%;
+    box-sizing: border-box;
+  }
+  .faq-accordion summary::after {
+    content: "";
+    position: absolute;
+    right: 1.25em;
+    top: 50%;
+    transform: translateY(-50%) translateX(-50%);
+    width: 14px;
+    height: 1px;
+    background-color: #fff;
+    z-index: 1;
+  }
+  .faq-accordion summary span::before {
+    content: "";
+    position: absolute;
+    right: calc(1.25em + 13px);
+    top: 50%;
+    transform: translateY(-50%) translateX(-50%);
+    width: 1px;
+    height: 14px;
+    background-color: #fff;
+    z-index: 1;
+  }
+}
+
+/* 20251015 追加アイテムページ レイアウト調整 */
+.rg-account_attention_img{
+  width: 100%;
+  height: 209px; 
+  object-fit: cover;    
+}
+.item-cleaning.add-item-page .market-price-list .market-price-list_item {
+  height: unset;
+}
+.item-cleaning.add-item-page .market-price-list .market-price-list_item div {
+  min-height: 180px;
+}
+.item-cleaning.add-item-page .market-price-list .tenpo-price-list {
+  border: none;
+}
+.item-cleaning.add-item-page .market-price-list .other-price-list {
+  border: none;
+}
+.item-cleaning.add-item-page .market-price-list .rinavis-price-list {
+  border: none;
+}
+.item-cleaning.add-item-page .market-price-list .tenpo-price-list,
+.item-cleaning.add-item-page .market-price-list .other-price-list {
+  padding-top: 55px;
+}
+.item-cleaning.add-item-page .market-price-list .tenpo-price-list div {
+  border: 2px solid #0097ac;
+}
+.item-cleaning.add-item-page .market-price-list .other-price-list div {
+  border: 2px solid #36ccda;
+}
+.item-cleaning.add-item-page .market-price-list .rinavis-price-list div {
+  border: 2px solid #F78C15;
+}
+
+/* 20251027 トップページ 画像コンテンツテキスト化 */
+.top__mv__label {
+  border-bottom: 1px solid #CECECE;
+  position: relative;
+}
+.top__mv__label_img {
+  position: absolute;
+  right: 50px;
+  top: -140px;
+  width: 210px;
+}
+.top__mv__label_imgArea {
+  max-width: 1200px;
+  position: relative;
+  margin: 0 auto;
+}
+.top__mv__label .top__mv__label_flex {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  padding: 30px 0;
+  min-width: 768px;
+}
+.top__mv__label .top__mv__label_flex .circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #AFDFE4;
+  border-radius: 50%;
+  width: 140px;
+  height: 140px;
+  font-size: 28px;
+  color: #222;
+  text-align: center;
+  font-weight: bold;
+  line-height: 1.2em;
+  letter-spacing:1.6px
+}
+.top__mv__label .top__mv__label_flex .circle span {
+  font-size: 24px;
+  letter-spacing:0.4px;
+}
+.top__mv__label .top__mv__label_flex .text_title {
+  font-size: 32px;
+  font-weight: bold;
+  color: #222;
+  line-height: 1.2em;
+}
+.top__mv__label .top__mv__label_flex .text_title span.font_blue {
+  color: #0097ac;
+  font-size: 36px;
+}
+.top__mv__label .top__mv__label_flex .text_title span.big {
+  font-size: 48px;
+}
+.top__mv__label .top__mv__label_flex .text_point {
+  font-weight: bold;
+  border-bottom: 2px solid #222;
+  color: #222;
+  font-size: 22px;
+}
+@media screen and (max-width: 1280px) {
+  .top__mv__label .top__mv__label_flex .circle {
+    width: 100px;
+    height: 100px;
+    font-size: 24px;
+  }
+  .top__mv__label .top__mv__label_flex .circle span {
+    font-size: 20px;
+  }
+  .top__mv__label .top__mv__label_flex .text_title {
+    font-size: 26px;
+  }
+  .top__mv__label .top__mv__label_flex .text_title span.font_blue {
+    font-size: 28px;
+  }
+  .top__mv__label .top__mv__label_flex .text_title span.big {
+    font-size: 42px;
+  }
+  .top__mv__label .top__mv__label_flex .text_point {
+    font-size: 18px;
+  }
+}
+@media screen and (max-width: 1100px) {
+  .top__mv__label .top__mv__label_flex .circle {
+    width: 100px;
+    height: 100px;
+    font-size: 22px;
+  }
+  .top__mv__label .top__mv__label_flex .circle span {
+    font-size: 16px;
+  }
+  .top__mv__label .top__mv__label_flex .text_title {
+    font-size: 22px;
+  }
+  .top__mv__label .top__mv__label_flex .text_title span.font_blue {
+    font-size: 24px;
+  }
+  .top__mv__label .top__mv__label_flex .text_title span.big {
+    font-size: 38px;
+  }
+  .top__mv__label .top__mv__label_flex .text_point {
+    font-size: 14px;
+  }
+}
+
+/* 20251106 オプション加工一覧ページ */
+.processing-page .rn-course_subttl {
+  padding: 30px 10px 0;
+}
+.processing-page .option-block {
+  margin-bottom: 80px;
+}
+.processing-page .rn-flow_btn {
+  margin-top: 30px;
+}
+.processing-page .option-block .rn-course_menu_block {
+  width: 100%;
+}
+
+/* 20251106 オプション加工一覧ページ */
+.processing-page .rn-course_subttl {
+  padding: 30px 10px 0;
+}
+.processing-page .option-block {
+  margin-bottom: 80px;
+}
+.processing-page .rn-flow_btn {
+  margin-top: 30px;
+}
+.processing-page .option-block .rn-course_menu_block {
+  width: 100%;
+}
+
+/* 20251126 add */
+/* toph1タグ修正 */
+.rn-hero .scn-head-logo img {
+  filter: drop-shadow(0 0 50px rgba(255, 255, 255, 1));
+  max-width: 420px;
+  width: 100%;
+}
+
+@media (max-width: 1260px){
+.rn-hero .scn-head-logo img{
+max-width: 260px;
+}
+}
+.scn-top-h1-ttl {
+  text-align: center;
+  margin-top: 40px;
+}
+/* オプション加工一覧ページ */
+.scn-f-option-points {
+  color: #0098ae;
+  border-left: 4px solid #0098ae;
+  font-size: 1.7em;
+  font-weight: 500;
+  padding-left: 8px;
+  line-height: 1;
+}
+
+/* 20251201 add */
+/* 商品詳細（衣類クリーニングコース）ページ 無料サービス */
+#scn-cource-item {
+  margin-top: 20px;
+}
+#scn-cource-item.item-cleaning .rn-course_block_item {
+  margin-bottom: 20px;
+}
+
+/* 商品詳細（クリーニングコースを選ぶ）ページ 選ばれる理由 */
+#scn-Reason .swell-block-fullWide__inner.l-article,
+#scn-Reason .swell-block-fullWide__inner.l-container {
+  margin: 0 auto;
+  padding: 96px 48px;
+  max-width: 1296px;
+}
+#scn-Reason .area-page_h2ttl {
+  font-size: 2em !important;
+  font-weight: 700;
+  color: #0097AC;
+  text-align: center;
+  line-height: 1.4;
+  margin: 0 0 2em;
+  position: relative;
+  z-index: 0;
+}
+#scn-Reason .wp-block-columns {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: normal;
+  gap: 1.5em;
+  box-sizing: border-box;
+}
+#scn-Reason .wp-block-column {
+  min-width: 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+#scn-Reason .wp-block-columns:not(.is-not-stacked-on-mobile)>.wp-block-column {
+  flex-basis: 0;
+  flex-grow: 1;
+  font-size: 16px;
+}
+#scn-Reason .reason_block div.has-background {
+  padding: 0;
+  border-radius: 8em 0.8em 0.8em 0.8em;
+}
+#scn-Reason .has-swl-main-thin-background-color {
+  background-color: rgba(0, 189, 215, 0.05);
+  color: #333;
+}
+#scn-Reason .reason_block .wp-block-image {
+  margin: 0;
+}
+#scn-Reason .wp-block-image img {
+  box-sizing: border-box;
+  height: auto;
+  max-width: 100%;
+  vertical-align: bottom;
+}
+#scn-Reason .reason_column_content {
+  padding: 1.6em;
+}
+#scn-Reason .reason_ttl_h3 {
+  font-size: 1.3em;
+  font-weight: 700;
+  line-height: 1.4;
+  display: inline-block;
+  padding-left: 2.4em;
+  margin-bottom: 1.2em;
+  position: relative;
+}
+#scn-Reason .reason_ttl_h3:before {
+  position: absolute;
+  content: "1";
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #36CCDA;
+  color: #fff;
+  min-width: 1.6em;
+  height: 1.6em;
+  border-radius: 1.5em;
+  margin-right: 10px;
+  font-size: 1.5em;
+  top: -0.3em;
+  left: -0.3em;
+  bottom: 0;
+  z-index: 0;
+}
+#scn-Reason .ttl_number2:before {
+  content: "2";
+}
+#scn-Reason .ttl_number3:before {
+  content: "3";
+}
+#scn-Reason div>:last-child {
+  margin-bottom: 0;
+}
+#scn-Reason .swl-format-2 {
+  font-weight: bold;
+  background: linear-gradient(transparent 84%, #FFE600 0%);
+}
+#scn-Reason .wp-block-group.is-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5em;
+}
+#scn-Reason .reason_option {
+  border: solid 1px #0097AC;
+  border-radius: 2em;
+  background-color: #fff;
+  color: #0097AC;
+  font-weight: bold;
+  padding: 0.3em 1.5em;
+}
+#scn-Reason .scnLink {
+  margin: 40px auto 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* 20251210 レイアウト調整 */
+#scn-Reason div>:last-child.reason_option {
+  margin-bottom: 1rem;
+}
+.scnHeaderBox .scn-top-h1-ttl {
+  margin-top: 40px;
+  text-align: left;
+  font-weight: bold;
+  font-size: 32px;
+}
+.scnHeaderBox {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 30px;
+}
+.scnTitle {
+  padding: 30px 0 0;
+  min-width: 768px;
+  max-width: 1030px;
+}
+.scnTitle .scnServiceName {
+  color: #0097ac;
+  font-size: 48px;
+}
+.scnTitle .scnCanBe {
+  position: relative;
+}
+.scnTitle .scnCanBe::before {
+  content: '···';
+  position: absolute;
+  top: -0.6em;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 50px;
+  color: #0097ac;
+  letter-spacing: 2px;
+}
+.top__mv__label .top__mv__label_flex.scn-top__mv__label_flex {
+  justify-content: start;
+}
+
+/* 20260127 クリーニングの特徴 */
+.scn-cate-feature_items {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.scn-cate-feature_item {
+  padding: 20px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  width: 32%;
+}
+.scn-cate-feature_item h4 {
+  color: #0097ac;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 10px auto;
+}
+.scn-cate-feature_item .img {
+  aspect-ratio: 9/6;
+}
+.scn-cate-feature_item .img img {
+  object-fit: cover;
+  height: 100%;
+  width: 100%;
+}
+
+/* 20260127 クリーニングしたほうが良い理由 */
+.scn-cate-suggestion_item_wrap {
+  margin: 0 auto;
+  padding: 96px 48px 0;
+  max-width: 1296px;
+}
+.scn-cate-suggestion_item_wrap .rg-category_ttl {
+  font-size: 24px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  line-height: 1.5;
+  margin-bottom: 28px;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+}
+.scn-cate-suggestion_item_wrap .rg-category_ttl::before {
+  content: "";
+  width: 1.5em;
+  height: 1.5em;
+  background: url(/item/rinavis/img/common/ico_title.svg) no-repeat left center /1em;
+  flex-shrink: 0;
+}
+.scn-cate-suggestion_item_wrap .suggestion_intro {
+  font-size: 18px;
+  line-height: 1.5;
+}
+.scn-cate-suggestion_items {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.scn-cate-suggestion_item {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  width: 32%;
+}
+.scn-cate-suggestion_item {
+  font-size: 16px;
+}
+.scn-cate-suggestion_item h4 {
+  color: #0097ac;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 10px auto;
+}
