@@ -19,7 +19,7 @@ class SearchTest extends TestCase
 
     public function test_guests_are_redirected_from_the_search_page(): void
     {
-        $this->get('/manager/search?q=梅雨')->assertRedirect('/login');
+        $this->get('/manager/search?q=梅雨')->assertRedirect('/');
     }
 
     public function test_the_old_search_url_is_gone(): void

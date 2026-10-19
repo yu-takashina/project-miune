@@ -37,7 +37,7 @@ class SearchResultTest extends TestCase
         $this->fakeEmbedding($this->vector(1.0));
         auth()->logout();
 
-        $this->get('/manager/search?q=梅雨')->assertRedirect('/login');
+        $this->get('/manager/search?q=梅雨')->assertRedirect('/');
 
         $this->assertSame(0, $this->embeddingCalls());
         $this->assertSame(0, SearchTerm::query()->count());

@@ -7,13 +7,9 @@ use App\Http\Controllers\SearchController;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
-
 Route::middleware('guest')->group(function () {
-    Route::get('/login', [LoginController::class, 'create'])->name('login');
-    Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:5,1');
+    Route::get('/', [LoginController::class, 'create'])->name('login');
+    Route::post('/', [LoginController::class, 'store'])->middleware('throttle:5,1');
 });
 
 Route::middleware('auth')->group(function () {
