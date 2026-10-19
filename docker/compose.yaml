@@ -1,16 +1,16 @@
 services:
-  app:
-    image: miune-app
+  backend:
+    image: miune-backend
     # ホスト:コンテナ = ブラウザからの HTTP ポート
     ports:
       - "8051:80"
     build:
-      context: ./app
+      context: ./app/backend
       args:
         TZ: Asia/Tokyo
         UID: ${HOST_UID:-1000}
         GID: ${HOST_GID:-1000}
-    container_name: miune_app
+    container_name: miune_backend
     environment:
       APACHE_DOCUMENT_ROOT: /var/www/html/public
       TZ: Asia/Tokyo
@@ -21,7 +21,7 @@ services:
         condition: service_healthy
 
   frontend:
-    image: miune-app
+    image: miune-frontend
     # ホスト:コンテナ = ブラウザからの HTTP ポート
     ports:
       - "8015:80"
@@ -43,7 +43,7 @@ services:
 
   # 1分おきに起動して1秒に1ページ取得し、毎日サイトマップの差分を更新する
   scheduler:
-    image: miune-app
+    image: miune-backend
     container_name: miune_scheduler
     environment:
       TZ: Asia/Tokyo

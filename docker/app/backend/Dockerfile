@@ -48,7 +48,7 @@ RUN apt-get update \
 USER root
 RUN docker-php-ext-install pcntl
 
-# Trafilatura は PHP から標準入力で呼ぶ。巡回は app と scheduler が同じイメージで動く。
+# Trafilatura は PHP から標準入力で呼ぶ。巡回は backend と scheduler が同じイメージで動く。
 RUN apt-get update \
  && apt-get install -y --no-install-recommends python3 python3-venv \
  && python3 -m venv /opt/trafilatura \

@@ -13,11 +13,11 @@ Laravel 13。エージェントへの作業指示は、このファイルを正�
 PHP、Composer、Artisan、Pint、Larastan、PHPUnit、npm は、アプリコンテナで実行する。
 
 ```bash
-docker compose exec -T app php artisan …
-docker compose exec -T app vendor/bin/pint
-docker compose exec -T app vendor/bin/phpstan analyse --no-progress
-docker compose exec -T app php artisan test
-docker compose exec -T app npm run build
+docker compose exec -T backend php artisan …
+docker compose exec -T backend vendor/bin/pint
+docker compose exec -T backend vendor/bin/phpstan analyse --no-progress
+docker compose exec -T backend php artisan test
+docker compose exec -T backend npm run build
 ```
 
 ブラウザは http://localhost:8051 。データベースは MariaDB（コンテナ `miune_db`、データベース名 `miune`）。
@@ -40,7 +40,7 @@ docker compose exec -T app npm run build
 スキーマを変えたときだけ migrate する。`--seed` は付けない。
 
 ```bash
-docker compose exec -T app php artisan migrate --force --no-interaction
+docker compose exec -T backend php artisan migrate --force --no-interaction
 ```
 
 ## コミット
