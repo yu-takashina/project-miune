@@ -56,7 +56,7 @@ class CrawlSitemapPage implements ShouldQueue
 
         if ($response->status() === 404) {
             $response->toPsrResponse()->getBody()->close();
-            $this->markFetchFailed($page, httpStatus: $response->status());
+            $this->markNotFound($page);
 
             return;
         }
@@ -234,14 +234,41 @@ class CrawlSitemapPage implements ShouldQueue
     }
 
     /**
-     * 接続できないとき、HTTP 404 のとき、予期しない例外のときは crawled_at を変えず、失敗が続くほど次の取得を遅らせる。
+     * HTTP 404 は取得失敗として待ちを伸ばす。取得日時は変えず、保存済みの本文とベクトルは捨てる。
      */
-    private function markFetchFailed(SitemapPage $page, ?Throwable $exception = null, ?int $httpStatus = null): void
+    private function markNotFound(SitemapPage $page): void
+    {
+        $failures = $page->fetch_failure_count + 1;
+        CrawlErrorLog::forPage($page, '取得に失敗しました。', 404);
+        $page->embedding_error = null;
+        $page->embedding_failed_sha256 = null;
+        $page->embedding_failure_count = 0;
+        $page->embedding_retry_at = null;
+        $page->update([
+            'http_status' => 404,
+            'response_bytes' => null,
+            'body' => null,
+            'body_sha256' => null,
+            'article_text' => null,
+            'extraction_status' => null,
+            'extracted_at' => null,
+            'error_message' => null,
+            'fetch_failure_count' => $failures,
+            'fetch_retry_at' => RetryBackoff::nextAt($failures),
+        ]);
+        $page->embeddings()->delete();
+    }
+
+    /**
+     * 接続できないときと予期しない例外のときは、HTTP ステータスだけ空にし、保存済みの本文と crawled_at は変えず、失敗が続くほど次の取得を遅らせる。
+     */
+    private function markFetchFailed(SitemapPage $page, Throwable $exception): void
     {
         $message = '取得に失敗しました。';
         $failures = $page->fetch_failure_count + 1;
-        CrawlErrorLog::forPage($page, $message.($exception === null ? '' : $exception->getMessage()), $httpStatus);
+        CrawlErrorLog::forPage($page, $message.$exception->getMessage());
         $page->update([
+            'http_status' => null,
             'error_message' => $message,
             'fetch_failure_count' => $failures,
             'fetch_retry_at' => RetryBackoff::nextAt($failures),

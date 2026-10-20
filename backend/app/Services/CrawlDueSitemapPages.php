@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Throwable;
 
 /**
- * 掲載中で、未取得か前回の取得から日が経ったページを、時間の許す範囲で取得する。
+ * 掲載中で、未取得か前回の取得から日が経ったページと、取得に失敗して再試行を待つページを、時間の許す範囲で取得する。
  */
 class CrawlDueSitemapPages
 {
@@ -92,7 +92,8 @@ class CrawlDueSitemapPages
             })
             ->where(function (Builder $query) use ($now): void {
                 $query->whereNull('crawled_at')
-                    ->orWhere('crawled_at', '<=', $now->copy()->subDays(self::RECRAWL_DAYS));
+                    ->orWhere('crawled_at', '<=', $now->copy()->subDays(self::RECRAWL_DAYS))
+                    ->orWhereNotNull('fetch_retry_at');
             })
             ->where(function (Builder $query) use ($now): void {
                 $query->whereNull('fetch_retry_at')

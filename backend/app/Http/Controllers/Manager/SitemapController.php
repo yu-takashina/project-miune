@@ -107,8 +107,10 @@ class SitemapController extends Controller
                 $builder->where('http_status', 404);
             })
             ->when($status === 'other', function (Builder $builder): void {
-                $builder->whereNotNull('http_status')
-                    ->whereNotIn('http_status', [200, 404]);
+                $builder->where(function (Builder $builder): void {
+                    $builder->whereNull('http_status')
+                        ->orWhereNotIn('http_status', [200, 404]);
+                });
             });
 
         match ($sort.':'.$order) {
