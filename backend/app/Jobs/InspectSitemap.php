@@ -30,8 +30,9 @@ class InspectSitemap implements ShouldQueue
 
     /**
      * @param  bool  $retryFailed  取得失敗と書式エラーも、ロックを取ってから読み直す。一覧の「今すぐ巡回」だけが true にする。
+     * @param  array{status: 'ok', locs: list<string>}|array{status: 'invalid', message: string}|array{status: 'failed', message: string}|array{status: 'too_deep', message: string}|null  $collected  登録時にたどった結果。渡したときは sitemap.xml を読み直さない。
      */
-    public function __construct(public int $sitemapId, public bool $retryFailed = false) {}
+    public function __construct(public int $sitemapId, public bool $retryFailed = false, public ?array $collected = null) {}
 
     public static function depthErrorMessage(): string
     {
@@ -83,7 +84,7 @@ class InspectSitemap implements ShouldQueue
             return;
         }
 
-        $collected = (new SitemapTreeReader($reader))->collect($sitemap->url);
+        $collected = $this->collected ?? (new SitemapTreeReader($reader))->collect($sitemap->url);
 
         if ($collected['status'] === 'too_deep') {
             $this->markDepthError($sitemap, $collected['message']);

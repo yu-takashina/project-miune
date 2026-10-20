@@ -112,8 +112,15 @@ class SitemapTest extends TestCase
             ->assertRedirect('/manager/sitemap');
 
         $sitemap = Sitemap::query()->firstOrFail();
-        $this->assertSame(SitemapStatus::Pending, $sitemap->status);
-        $this->assertSame(0, $sitemap->pages()->count());
+        $this->assertSame(SitemapStatus::Completed, $sitemap->status);
+        $this->assertNull($sitemap->error_message);
+        $this->assertNotNull($sitemap->crawled_at);
+        $this->assertSame(2, $sitemap->pages()->count());
+        $this->assertSame(
+            [null, null],
+            $sitemap->pages()->orderBy('id')->pluck('crawled_at')->all(),
+        );
+        Http::assertSentCount(1);
 
         $this->processDueSitemaps();
 
@@ -285,15 +292,13 @@ class SitemapTest extends TestCase
         $this->actingAs(User::factory()->create())
             ->post('/manager/sitemaps', ['url' => 'https://example.com/sitemap.xml']);
 
-        $recorded = Http::recorded()->count();
-
         $this->processDueSitemaps();
 
         $sitemap = Sitemap::query()->firstOrFail();
         $this->assertSame(SitemapStatus::Completed, $sitemap->status);
         $this->assertSame(['https://example.com/page'], $sitemap->pages()->pluck('url')->all());
 
-        $fetches = Http::recorded()->slice($recorded)->filter(
+        $fetches = Http::recorded()->filter(
             fn (array $pair): bool => $pair[0]->url() === 'https://example.com/sitemap.xml',
         )->count();
 
@@ -546,6 +551,51 @@ class SitemapTest extends TestCase
 
         $this->assertSame(SitemapStatus::Failed, $sitemap->status);
         $this->assertSame('sitemap.xml の取得に失敗しました（HTTP 404）。', $sitemap->error_message);
+    }
+
+    public function test_an_unexpected_error_while_reading_a_new_sitemap_saves_it_as_failed(): void
+    {
+        Exceptions::fake();
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://example.com/sitemap.xml' => fn () => throw new RuntimeException('予期しないエラー'),
+        ]);
+
+        $this->actingAs(User::factory()->create())
+            ->post('/manager/sitemaps', ['url' => 'https://example.com/sitemap.xml'])
+            ->assertRedirect('/manager/sitemap')
+            ->assertSessionHasNoErrors();
+
+        Exceptions::assertReported(RuntimeException::class);
+        $sitemap = Sitemap::query()->sole();
+        $this->assertSame(SitemapStatus::Failed, $sitemap->status);
+        $this->assertSame('sitemap.xml を取得できませんでした。', $sitemap->error_message);
+        $this->assertNull($sitemap->crawled_at);
+        $this->assertSame(1, CrawlErrorLog::query()->where('sitemap_id', $sitemap->id)->count());
+    }
+
+    public function test_an_unexpected_error_while_syncing_a_new_sitemap_marks_it_failed(): void
+    {
+        Exceptions::fake();
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://example.com/sitemap.xml' => Http::response($this->urlset('https://example.com/a'), 200),
+        ]);
+        SitemapPage::creating(fn () => throw new RuntimeException('予期しないエラー'));
+
+        $this->actingAs(User::factory()->create())
+            ->post('/manager/sitemaps', ['url' => 'https://example.com/sitemap.xml'])
+            ->assertRedirect('/manager/sitemap')
+            ->assertSessionHasNoErrors();
+
+        Exceptions::assertReported(RuntimeException::class);
+        $sitemap = Sitemap::query()->sole();
+        $this->assertSame(SitemapStatus::Failed, $sitemap->status);
+        $this->assertSame('sitemap.xml を取得できませんでした。', $sitemap->error_message);
+        $this->assertNull($sitemap->crawled_at);
+        $this->assertSame(0, $sitemap->pages()->count());
+        $this->assertSame(1, CrawlErrorLog::query()->where('sitemap_id', $sitemap->id)->count());
+        Http::assertSentCount(1);
     }
 
     public function test_deleting_a_sitemap_deletes_crawled_pages(): void

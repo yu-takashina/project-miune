@@ -18,6 +18,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Throwable;
 
 class SitemapController extends Controller
 {
@@ -40,7 +41,13 @@ class SitemapController extends Controller
     public function store(StoreSitemapRequest $request): RedirectResponse
     {
         $url = $request->string('url')->toString();
-        $collected = (new SitemapTreeReader(new SitemapUrlsetReader))->collect($url);
+
+        try {
+            $collected = (new SitemapTreeReader(new SitemapUrlsetReader))->collect($url);
+        } catch (Throwable $exception) {
+            report($exception);
+            $collected = ['status' => 'failed', 'message' => 'sitemap.xml を取得できませんでした。'];
+        }
 
         if ($collected['status'] === 'too_deep') {
             throw ValidationException::withMessages([
@@ -57,6 +64,15 @@ class SitemapController extends Controller
             throw ValidationException::withMessages([
                 'url' => 'この URL は登録済みです。',
             ]);
+        }
+
+        $job = new InspectSitemap($sitemap->id, collected: $collected);
+
+        try {
+            $job->handle(new SitemapUrlsetReader);
+        } catch (Throwable $exception) {
+            report($exception);
+            $job->failed($exception);
         }
 
         return redirect()->route('sitemap.index');
