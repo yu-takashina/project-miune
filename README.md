@@ -97,7 +97,7 @@ docker compose exec -T backend php artisan migrate --seed --force --no-interacti
 | Laravel 13 | 管理画面のフレームワーク |
 | MariaDB 13 | アプリのデータ。Laravelからベクトル検索をスムーズに行うため、MySQLではなくMariaDBを採用 |
 | fivefilters/readability.php | 取得した HTML から本文を抜く |
-| Trafilatura 2.3(Phthon) | 上記と同様 |
+| Trafilatura 2.3(Python) | 上記と同様 |
 | OpenAI text-embedding-3-small | サイトコンテンツ・検索キーワードをベクトル化 |
 
 ## 未実装部分
