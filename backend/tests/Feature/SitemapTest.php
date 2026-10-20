@@ -16,6 +16,7 @@ use App\Services\SitemapUrlsetReader;
 use GuzzleHttp\Psr7\FnStream;
 use GuzzleHttp\Psr7\Utils;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
@@ -618,6 +619,7 @@ class SitemapTest extends TestCase
 
         $sitemap = Sitemap::query()->firstOrFail();
         $pageId = SitemapPage::query()->value('id');
+        $this->insertEmbedding($pageId);
 
         $this->actingAs($user)
             ->delete('/manager/sitemaps/'.$sitemap->id)
@@ -625,6 +627,23 @@ class SitemapTest extends TestCase
 
         $this->assertDatabaseMissing('sitemaps', ['id' => $sitemap->id]);
         $this->assertDatabaseMissing('sitemap_pages', ['id' => $pageId]);
+        $this->assertDatabaseMissing('sitemap_page_embeddings', ['sitemap_page_id' => $pageId]);
+    }
+
+    public function test_embeddings_are_not_deleted_through_the_foreign_key_cascade(): void
+    {
+        $page = SitemapPage::query()->create([
+            'sitemap_id' => Sitemap::factory()->create()->id,
+            'url' => 'https://example.com/a',
+        ]);
+        $this->insertEmbedding($page->id);
+
+        try {
+            DB::table('sitemap_pages')->where('id', $page->id)->delete();
+            $this->fail('ベクトル行が残るページを削除できました。');
+        } catch (QueryException) {
+            $this->assertDatabaseHas('sitemap_page_embeddings', ['sitemap_page_id' => $page->id]);
+        }
     }
 
     public function test_a_missing_page_is_skipped_by_the_crawl_job(): void
@@ -2644,10 +2663,12 @@ class SitemapTest extends TestCase
             'body' => 'gone',
             'body_sha256' => hash('sha256', 'gone'),
         ]);
+        $this->insertEmbedding($gone->id);
 
         $this->refreshSitemap($sitemap);
 
         $this->assertDatabaseMissing('sitemap_pages', ['id' => $gone->id]);
+        $this->assertDatabaseMissing('sitemap_page_embeddings', ['sitemap_page_id' => $gone->id]);
         $this->assertDatabaseHas('sitemap_pages', ['url' => 'https://example.com/kept']);
     }
 
@@ -2683,6 +2704,16 @@ class SitemapTest extends TestCase
         return Sitemap::factory()->create([
             'url' => 'https://example.com/sitemap.xml',
             'status' => SitemapStatus::Completed,
+        ]);
+    }
+
+    private function insertEmbedding(mixed $pageId): void
+    {
+        DB::table('sitemap_page_embeddings')->insert([
+            'sitemap_page_id' => $pageId,
+            'embedding' => json_encode(array_fill(0, 1536, 0.1)),
+            'article_text_sha256' => hash('sha256', 'article'),
+            'embedded_at' => now(),
         ]);
     }
 

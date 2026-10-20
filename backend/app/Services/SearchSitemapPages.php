@@ -5,16 +5,10 @@ namespace App\Services;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use JsonException;
-use stdClass;
 
 class SearchSitemapPages
 {
     public const LIMIT = 20;
-
-    /**
-     * ベクトル索引から先に取る件数。ページかサイトマップが検索対象外、古いベクトル、同じ URL を除いた残りを出すので、LIMIT に届かないことがある。
-     */
-    public const CANDIDATES = 100;
 
     /**
      * 関連度は 1 から余弦距離を引いた値。1 が同じ向き、0 が直交。
@@ -29,12 +23,33 @@ class SearchSitemapPages
         }
 
         try {
-            $encoded = json_encode($vector, JSON_THROW_ON_ERROR);
+            return $this->nearestFromMariaDb($vector, $limit);
         } catch (JsonException $exception) {
             throw new OpenAiEmbeddingException('埋め込みの次元が不正です。', false, false, $exception);
         }
+    }
 
-        return $this->nearestFromMariaDb($encoded, $limit);
+    /**
+     * 検索対象のページの、今の採用本文のベクトル行。
+     * 全ページを走査するので、本文の有無は HTML 全体を持つ body ではなく body_sha256 で見る。
+     */
+    private function searchableEmbeddings(): Builder
+    {
+        return DB::table('sitemap_page_embeddings')
+            ->join('sitemap_pages', 'sitemap_pages.id', '=', 'sitemap_page_embeddings.sitemap_page_id')
+            ->join('sitemaps', 'sitemaps.id', '=', 'sitemap_pages.sitemap_id')
+            ->where('sitemap_pages.searchable', true)
+            ->where('sitemaps.searchable', true)
+            ->whereNull('sitemap_pages.unlisted_at')
+            ->whereNotNull('sitemap_pages.body_sha256')
+            ->where(function (Builder $query): void {
+                $query->whereNull('sitemap_pages.http_status')
+                    ->orWhere('sitemap_pages.http_status', '<>', 404);
+            })
+            ->whereColumn(
+                'sitemap_page_embeddings.article_text_sha256',
+                'sitemap_pages.article_text_sha256',
+            );
     }
 
     /**
@@ -43,21 +58,7 @@ class SearchSitemapPages
      */
     private function nearestFromSqlite(array $vector, int $limit): array
     {
-        $rows = DB::table('sitemap_page_embeddings')
-            ->join('sitemap_pages', 'sitemap_pages.id', '=', 'sitemap_page_embeddings.sitemap_page_id')
-            ->join('sitemaps', 'sitemaps.id', '=', 'sitemap_pages.sitemap_id')
-            ->where('sitemap_pages.searchable', true)
-            ->where('sitemaps.searchable', true)
-            ->whereNull('sitemap_pages.unlisted_at')
-            ->whereNotNull('sitemap_pages.body')
-            ->where(function (Builder $query): void {
-                $query->whereNull('sitemap_pages.http_status')
-                    ->orWhere('sitemap_pages.http_status', '<>', 404);
-            })
-            ->whereColumn(
-                'sitemap_page_embeddings.article_text_sha256',
-                'sitemap_pages.article_text_sha256',
-            )
+        $rows = $this->searchableEmbeddings()
             ->get([
                 'sitemap_page_embeddings.sitemap_page_id as page_id',
                 'sitemap_page_embeddings.embedding',
@@ -108,6 +109,56 @@ class SearchSitemapPages
             return $left['id'] <=> $right['id'];
         });
 
+        return $this->firstPerUrl($ranked, $limit);
+    }
+
+    /**
+     * ベクトル索引は使わず、検索対象のページすべてと距離を比べる。
+     * MariaDB の索引は近似なので本当に近いページを取りこぼし、先に候補を絞ると検索対象外の分だけ件数も欠けるため。
+     * selectVectorDistance は接続が mariadb のときだけ使える。mysql の接続では、相手が MariaDB でも例外になる。
+     *
+     * @param  list<float>  $vector
+     * @return list<array{id: int, relevance: float}>
+     *
+     * @throws JsonException
+     */
+    private function nearestFromMariaDb(array $vector, int $limit): array
+    {
+        $rows = $this->searchableEmbeddings()
+            ->select([
+                'sitemap_pages.id as page_id',
+                'sitemap_pages.url as url',
+            ])
+            ->selectVectorDistance('sitemap_page_embeddings.embedding', $vector, 'distance')
+            ->orderBy('distance')
+            ->orderBy('sitemap_pages.id')
+            ->get();
+
+        /** @var list<array{id: int, distance: float, url: string}> $ranked */
+        $ranked = [];
+
+        foreach ($rows as $row) {
+            $url = $row->url;
+
+            if (! is_numeric($row->page_id) || ! is_string($url) || $url === '' || ! is_numeric($row->distance)) {
+                continue;
+            }
+
+            $ranked[] = ['id' => (int) $row->page_id, 'distance' => (float) $row->distance, 'url' => $url];
+        }
+
+        return $this->firstPerUrl($ranked, $limit);
+    }
+
+    /**
+     * 行は近い順、同じ距離ならページ ID の小さい順に渡す。
+     * 同じ URL は最初の行だけを残す。同じページの行は URL も同じなので、最も近い行が残る。
+     *
+     * @param  list<array{id: int, distance: float, url: string}>  $ranked
+     * @return list<array{id: int, relevance: float}>
+     */
+    private function firstPerUrl(array $ranked, int $limit): array
+    {
         $matches = [];
         /** @var array<string, true> $seenUrls */
         $seenUrls = [];
@@ -121,78 +172,6 @@ class SearchSitemapPages
             $matches[] = [
                 'id' => $row['id'],
                 'relevance' => 1.0 - $row['distance'],
-            ];
-
-            if (count($matches) === $limit) {
-                break;
-            }
-        }
-
-        return $matches;
-    }
-
-    /**
-     * @return list<array{id: int, relevance: float}>
-     */
-    private function nearestFromMariaDb(string $encoded, int $limit): array
-    {
-        $candidates = self::CANDIDATES;
-        $rows = DB::select(
-            <<<SQL
-                SELECT
-                    candidates.sitemap_page_id AS page_id,
-                    candidates.distance AS distance,
-                    sitemap_pages.url AS url
-                FROM (
-                    SELECT
-                        sitemap_page_id,
-                        article_text_sha256,
-                        VEC_DISTANCE_COSINE(embedding, VEC_FromText(?)) AS distance
-                    FROM sitemap_page_embeddings
-                    ORDER BY VEC_DISTANCE_COSINE(embedding, VEC_FromText(?))
-                    LIMIT {$candidates}
-                ) AS candidates
-                INNER JOIN sitemap_pages ON sitemap_pages.id = candidates.sitemap_page_id
-                INNER JOIN sitemaps ON sitemaps.id = sitemap_pages.sitemap_id
-                WHERE sitemap_pages.searchable = 1
-                  AND sitemaps.searchable = 1
-                  AND sitemap_pages.unlisted_at IS NULL
-                  AND sitemap_pages.body IS NOT NULL
-                  AND (sitemap_pages.http_status IS NULL OR sitemap_pages.http_status <> 404)
-                  AND candidates.article_text_sha256 = sitemap_pages.article_text_sha256
-                ORDER BY candidates.distance, candidates.sitemap_page_id
-            SQL,
-            [$encoded, $encoded],
-        );
-
-        $matches = [];
-        /** @var array<int, true> $seenPages */
-        $seenPages = [];
-        /** @var array<string, true> $seenUrls */
-        $seenUrls = [];
-
-        foreach ($rows as $row) {
-            if (! $row instanceof stdClass || ! is_numeric($row->page_id ?? null) || ! is_numeric($row->distance ?? null)) {
-                continue;
-            }
-
-            $url = $row->url;
-
-            if (! is_string($url) || $url === '') {
-                continue;
-            }
-
-            $id = (int) $row->page_id;
-
-            if (isset($seenPages[$id]) || isset($seenUrls[$url])) {
-                continue;
-            }
-
-            $seenPages[$id] = true;
-            $seenUrls[$url] = true;
-            $matches[] = [
-                'id' => $id,
-                'relevance' => 1.0 - (float) $row->distance,
             ];
 
             if (count($matches) === $limit) {

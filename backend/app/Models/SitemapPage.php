@@ -87,6 +87,11 @@ class SitemapPage extends Model
 
             $page->embeddings()->delete();
         });
+
+        // 外部キーの連鎖でベクトル行を消すと、MariaDB のベクトル索引から残りの行が見えなくなる（MDEV-41227）。
+        static::deleting(function (SitemapPage $page): void {
+            $page->embeddings()->delete();
+        });
     }
 
     /**
