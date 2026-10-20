@@ -40,6 +40,13 @@ class Sitemap extends Model
         static::saving(function (Sitemap $sitemap): void {
             $sitemap->url_sha256 = hash('sha256', $sitemap->url);
         });
+
+        // ページは外部キーの連鎖で消えるので、そのベクトル行だけは先に直接消す（MDEV-41227）。
+        static::deleting(function (Sitemap $sitemap): void {
+            SitemapPageEmbedding::query()
+                ->whereIn('sitemap_page_id', $sitemap->pages()->select('id'))
+                ->delete();
+        });
     }
 
     /**

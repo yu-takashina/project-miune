@@ -16,6 +16,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Throwable;
@@ -233,7 +234,7 @@ class SitemapController extends Controller
 
     public function destroy(Sitemap $sitemap): RedirectResponse
     {
-        $sitemap->delete();
+        DB::transaction(fn (): ?bool => $sitemap->delete());
 
         return redirect()->route('sitemap.index');
     }
