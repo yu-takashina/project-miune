@@ -123,6 +123,41 @@ class SearchApiTest extends TestCase
         $this->assertNotNull($this->apiKey->refresh()->last_used_at);
     }
 
+    public function test_article_text_is_cut_to_its_first_characters(): void
+    {
+        $sitemap = Sitemap::factory()->create();
+        $head = str_repeat('あ', SearchController::ARTICLE_TEXT_LENGTH);
+        $long = $this->page($sitemap, 'https://example.com/long', ['article_text' => $head.'い']);
+        $short = $this->page($sitemap, 'https://example.com/short', ['article_text' => '短い本文']);
+        $this->insertEmbedding($long, $this->vector(1.0));
+        $this->insertEmbedding($short, $this->vector(0.0, 1.0));
+        $this->fakeEmbedding($this->vector(1.0));
+
+        $this->getJson('/api/search?q=長さ')
+            ->assertOk()
+            ->assertExactJson([
+                ['url' => 'https://example.com/long', 'article_text' => $head],
+                ['url' => 'https://example.com/short', 'article_text' => '短い本文'],
+            ]);
+    }
+
+    public function test_results_read_only_the_columns_they_return(): void
+    {
+        $page = $this->page(Sitemap::factory()->create(), 'https://example.com/columns');
+        $this->insertEmbedding($page, $this->vector(1.0));
+        $this->fakeEmbedding($this->vector(1.0));
+
+        DB::enableQueryLog();
+        $this->getJson('/api/search?q=列')->assertOk()->assertJsonCount(1);
+
+        $queries = array_values(array_filter(
+            array_column(DB::getQueryLog(), 'query'),
+            fn (string $query): bool => str_contains($query, 'from "sitemap_pages" where "id" in'),
+        ));
+        $this->assertCount(1, $queries);
+        $this->assertStringStartsWith('select "id", "url", "article_text" from', $queries[0]);
+    }
+
     public function test_the_same_term_is_embedded_once(): void
     {
         $this->fakeEmbedding($this->vector(1.0));

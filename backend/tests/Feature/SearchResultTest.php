@@ -220,6 +220,25 @@ class SearchResultTest extends TestCase
             ->assertDontSee('https://example.com/sitemap-off');
     }
 
+    public function test_results_read_only_the_columns_they_show(): void
+    {
+        $page = $this->page(Sitemap::factory()->create(), 'https://example.com/columns');
+        $this->insertEmbedding($page, $this->vector(1.0));
+        $this->fakeEmbedding($this->vector(1.0));
+
+        DB::enableQueryLog();
+        $this->get('/manager/search?q=列')
+            ->assertOk()
+            ->assertSee('https://example.com/columns');
+
+        $queries = array_values(array_filter(
+            array_column(DB::getQueryLog(), 'query'),
+            fn (string $query): bool => str_contains($query, 'from "sitemap_pages" where "id" in'),
+        ));
+        $this->assertCount(1, $queries);
+        $this->assertStringStartsWith('select "id", "url", "unlisted_at" from', $queries[0]);
+    }
+
     public function test_the_same_url_on_another_sitemap_is_shown_once(): void
     {
         $first = Sitemap::factory()->create();

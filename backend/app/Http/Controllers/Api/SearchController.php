@@ -20,6 +20,9 @@ class SearchController extends Controller
 {
     public const LIMIT = 10;
 
+    /** 結果に返す本文の先頭の文字数。 */
+    public const ARTICLE_TEXT_LENGTH = 500;
+
     /** 検索API全体で、新規の検索語をベクトル化できる回数。 */
     public const EMBEDDINGS_PER_MINUTE = 60;
 
@@ -107,7 +110,10 @@ class SearchController extends Controller
             return [];
         }
 
-        $pages = SitemapPage::query()->whereIn('id', $ids)->get()->keyBy('id');
+        $pages = SitemapPage::query()
+            ->whereIn('id', $ids)
+            ->get(['id', 'url', 'article_text'])
+            ->keyBy('id');
         $results = [];
 
         foreach ($ids as $id) {
@@ -119,7 +125,9 @@ class SearchController extends Controller
 
             $results[] = [
                 'url' => $page->url,
-                'article_text' => $page->article_text,
+                'article_text' => $page->article_text === null
+                    ? null
+                    : mb_substr($page->article_text, 0, self::ARTICLE_TEXT_LENGTH),
             ];
         }
 
