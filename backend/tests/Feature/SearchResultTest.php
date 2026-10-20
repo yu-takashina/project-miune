@@ -184,7 +184,7 @@ class SearchResultTest extends TestCase
         $off = $this->page($sitemap, 'https://example.com/off', ['searchable' => false]);
         $gone = $this->page($sitemap, 'https://example.com/gone', ['unlisted_at' => now()]);
         $stale = $this->page($sitemap, 'https://example.com/stale');
-        $empty = $this->page($sitemap, 'https://example.com/empty', ['body' => null]);
+        $empty = $this->page($sitemap, 'https://example.com/empty', ['body' => null, 'body_sha256' => null]);
         $missing = $this->page($sitemap, 'https://example.com/missing', ['http_status' => 404]);
         $unknown = $this->page($sitemap, 'https://example.com/unknown', ['http_status' => null]);
         $sitemapOff = $this->page(Sitemap::factory()->create(['searchable' => false]), 'https://example.com/sitemap-off');
@@ -330,6 +330,7 @@ class SearchResultTest extends TestCase
             'url' => $url,
             'searchable' => true,
             'body' => '本文',
+            'body_sha256' => hash('sha256', '本文'),
             'article_text' => '採用本文 '.$url,
             'http_status' => 200,
             'response_bytes' => 128,
