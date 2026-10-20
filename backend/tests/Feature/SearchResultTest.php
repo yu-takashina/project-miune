@@ -187,8 +187,15 @@ class SearchResultTest extends TestCase
         $empty = $this->page($sitemap, 'https://example.com/empty', ['body' => null, 'body_sha256' => null]);
         $missing = $this->page($sitemap, 'https://example.com/missing', ['http_status' => 404]);
         $unknown = $this->page($sitemap, 'https://example.com/unknown', ['http_status' => null]);
+        $failing = $this->page($sitemap, 'https://example.com/failing', ['fetch_failure_count' => 1]);
+        $retrying = $this->page($sitemap, 'https://example.com/retrying', [
+            'fetch_failure_count' => 1,
+            'crawled_at' => now()->subDays(SitemapPage::SEARCH_STALE_DAYS - 1),
+        ]);
         $sitemapOff = $this->page(Sitemap::factory()->create(['searchable' => false]), 'https://example.com/sitemap-off');
         $vector = $this->vector(1.0);
+        $this->insertEmbedding($failing, $vector);
+        $this->insertEmbedding($retrying, $vector);
         $this->insertEmbedding($listed, $vector);
         $this->insertEmbedding($off, $vector);
         $this->insertEmbedding($gone, $vector);
@@ -203,6 +210,8 @@ class SearchResultTest extends TestCase
             ->assertOk()
             ->assertSee('https://example.com/listed')
             ->assertSee('https://example.com/unknown')
+            ->assertSee('https://example.com/retrying')
+            ->assertDontSee('https://example.com/failing')
             ->assertDontSee('https://example.com/off')
             ->assertDontSee('https://example.com/gone')
             ->assertDontSee('https://example.com/stale')

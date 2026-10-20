@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\SitemapPage;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use JsonException;
@@ -45,6 +46,10 @@ class SearchSitemapPages
             ->where(function (Builder $query): void {
                 $query->whereNull('sitemap_pages.http_status')
                     ->orWhere('sitemap_pages.http_status', '<>', 404);
+            })
+            ->where(function (Builder $query): void {
+                $query->where('sitemap_pages.fetch_failure_count', 0)
+                    ->orWhere('sitemap_pages.crawled_at', '>', now()->subDays(SitemapPage::SEARCH_STALE_DAYS));
             })
             ->whereColumn(
                 'sitemap_page_embeddings.article_text_sha256',
@@ -201,6 +206,10 @@ class SearchSitemapPages
             ->where(function (Builder $query): void {
                 $query->whereNull('sitemap_pages.http_status')
                     ->orWhere('sitemap_pages.http_status', '<>', 404);
+            })
+            ->where(function (Builder $query): void {
+                $query->where('sitemap_pages.fetch_failure_count', 0)
+                    ->orWhere('sitemap_pages.crawled_at', '>', now()->subDays(SitemapPage::SEARCH_STALE_DAYS));
             })
             ->whereNotNull('sitemap_pages.article_text')
             ->whereRaw('sitemap_pages.article_text LIKE ? ESCAPE ?', [$pattern, '\\'])
