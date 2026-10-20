@@ -108,6 +108,7 @@
                                             <span class="search-toggle-knob"></span>
                                         </span>
                                     </button>
+                                    <p class="mt-1 whitespace-nowrap text-sm" data-search-toggle-notice hidden></p>
                                 </td>
                                 <td class="px-3 py-2">
                                     <div class="flex items-center gap-2">
@@ -141,6 +142,7 @@
                                         data-crawl
                                         data-url="{{ route('manager.sitemaps.pages.crawl', [$sitemap, $page]) }}"
                                     >今すぐ巡回</button>
+                                    <p class="mt-1 whitespace-nowrap text-sm" data-crawl-notice hidden></p>
                                 </td>
                             </tr>
                         @endforeach
