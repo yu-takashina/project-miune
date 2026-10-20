@@ -158,6 +158,44 @@ class SearchApiTest extends TestCase
         $this->assertStringStartsWith('select "id", "url", "article_text" from', $queries[0]);
     }
 
+    public function test_the_same_text_at_another_url_is_returned_once(): void
+    {
+        $sitemap = Sitemap::factory()->create();
+        $first = $this->page($sitemap, 'https://example.com/category/blackhead/', ['article_text' => '黒ずみの落とし方']);
+        $copy = $this->page($sitemap, 'https://example.com/blackhead/', ['article_text' => '黒ずみの落とし方']);
+        $other = $this->page($sitemap, 'https://example.com/other', ['article_text' => '別の記事']);
+        $this->insertEmbedding($first, $this->vector(1.0));
+        $this->insertEmbedding($copy, $this->vector(1.0));
+        $this->insertEmbedding($other, $this->vector(0.0, 1.0));
+        $this->fakeEmbedding($this->vector(1.0));
+
+        $this->getJson('/api/search?q=黒ずみ')
+            ->assertOk()
+            ->assertExactJson([
+                ['url' => 'https://example.com/category/blackhead/', 'article_text' => '黒ずみの落とし方'],
+                ['url' => 'https://example.com/other', 'article_text' => '別の記事'],
+            ]);
+    }
+
+    public function test_text_search_returns_the_same_text_at_another_url_once(): void
+    {
+        $sitemap = Sitemap::factory()->create();
+        $this->page($sitemap, 'https://example.com/category/blackhead/', ['article_text' => '黒ずみの落とし方']);
+        $this->page($sitemap, 'https://example.com/blackhead/', ['article_text' => '黒ずみの落とし方']);
+        $this->page($sitemap, 'https://example.com/other', ['article_text' => '黒ずみの原因']);
+        $this->fakeEmbedding($this->vector(1.0));
+        $this->fillLimit(SearchController::EMBEDDING_LIMIT_KEY, SearchController::EMBEDDINGS_PER_MINUTE);
+
+        $this->getJson('/api/search?q=黒ずみ')
+            ->assertOk()
+            ->assertExactJson([
+                ['url' => 'https://example.com/category/blackhead/', 'article_text' => '黒ずみの落とし方'],
+                ['url' => 'https://example.com/other', 'article_text' => '黒ずみの原因'],
+            ]);
+
+        $this->assertSame(0, $this->embeddingCalls());
+    }
+
     public function test_the_same_term_is_embedded_once(): void
     {
         $this->fakeEmbedding($this->vector(1.0));
