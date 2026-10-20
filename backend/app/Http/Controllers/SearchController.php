@@ -47,7 +47,10 @@ class SearchController extends Controller
             return [];
         }
 
-        $pages = SitemapPage::query()->whereIn('id', array_column($matches, 'id'))->get()->keyBy('id');
+        $pages = SitemapPage::query()
+            ->whereIn('id', array_column($matches, 'id'))
+            ->get(['id', 'url', 'unlisted_at'])
+            ->keyBy('id');
         $results = [];
 
         foreach ($matches as $match) {

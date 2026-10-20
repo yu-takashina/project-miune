@@ -220,6 +220,25 @@ class SearchResultTest extends TestCase
             ->assertDontSee('https://example.com/sitemap-off');
     }
 
+    public function test_results_read_only_the_columns_they_show(): void
+    {
+        $page = $this->page(Sitemap::factory()->create(), 'https://example.com/columns');
+        $this->insertEmbedding($page, $this->vector(1.0));
+        $this->fakeEmbedding($this->vector(1.0));
+
+        DB::enableQueryLog();
+        $this->get('/manager/search?q=列')
+            ->assertOk()
+            ->assertSee('https://example.com/columns');
+
+        $queries = array_values(array_filter(
+            array_column(DB::getQueryLog(), 'query'),
+            fn (string $query): bool => str_contains($query, 'from "sitemap_pages" where "id" in'),
+        ));
+        $this->assertCount(1, $queries);
+        $this->assertStringStartsWith('select "id", "url", "unlisted_at" from', $queries[0]);
+    }
+
     public function test_the_same_url_on_another_sitemap_is_shown_once(): void
     {
         $first = Sitemap::factory()->create();
@@ -245,6 +264,24 @@ class SearchResultTest extends TestCase
             strpos($content, 'break-all">https://example.com/other</span>'),
             strpos($content, '>1.00</td>'),
         );
+    }
+
+    public function test_the_same_text_at_another_url_is_shown_once(): void
+    {
+        $sitemap = Sitemap::factory()->create();
+        $copy = $this->page($sitemap, 'https://example.com/blackhead/', ['article_text' => '黒ずみの落とし方']);
+        $closer = $this->page($sitemap, 'https://example.com/category/blackhead/', ['article_text' => '黒ずみの落とし方']);
+        $other = $this->page($sitemap, 'https://example.com/other');
+        $this->insertEmbedding($copy, $this->vector(0.8, 0.2));
+        $this->insertEmbedding($closer, $this->vector(1.0));
+        $this->insertEmbedding($other, $this->vector(0.0, 1.0));
+        $this->fakeEmbedding($this->vector(1.0));
+
+        $this->get('/manager/search?q=黒ずみ')
+            ->assertOk()
+            ->assertSee('https://example.com/category/blackhead/')
+            ->assertDontSee('https://example.com/blackhead/')
+            ->assertSee('https://example.com/other');
     }
 
     public function test_a_repeated_url_does_not_take_the_place_of_another_page(): void

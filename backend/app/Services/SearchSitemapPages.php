@@ -68,15 +68,17 @@ class SearchSitemapPages
                 'sitemap_page_embeddings.sitemap_page_id as page_id',
                 'sitemap_page_embeddings.embedding',
                 'sitemap_pages.url as url',
+                'sitemap_pages.article_text_sha256 as text_sha256',
             ]);
 
-        /** @var array<int, array{distance: float, url: string}> $best */
+        /** @var array<int, array{distance: float, url: string, text: string}> $best */
         $best = [];
 
         foreach ($rows as $row) {
             $url = $row->url;
+            $text = $row->text_sha256;
 
-            if (! is_numeric($row->page_id) || ! is_string($url) || $url === '') {
+            if (! is_numeric($row->page_id) || ! is_string($url) || $url === '' || ! is_string($text)) {
                 continue;
             }
 
@@ -93,15 +95,16 @@ class SearchSitemapPages
                 $best[$id] = [
                     'distance' => $distance,
                     'url' => $url,
+                    'text' => $text,
                 ];
             }
         }
 
-        /** @var list<array{id: int, distance: float, url: string}> $ranked */
+        /** @var list<array{id: int, distance: float, url: string, text: string}> $ranked */
         $ranked = [];
 
         foreach ($best as $id => $row) {
-            $ranked[] = ['id' => $id, 'distance' => $row['distance'], 'url' => $row['url']];
+            $ranked[] = ['id' => $id, 'distance' => $row['distance'], 'url' => $row['url'], 'text' => $row['text']];
         }
 
         usort($ranked, function (array $left, array $right): int {
@@ -114,7 +117,7 @@ class SearchSitemapPages
             return $left['id'] <=> $right['id'];
         });
 
-        return $this->firstPerUrl($ranked, $limit);
+        return $this->firstPerUrlAndText($ranked, $limit);
     }
 
     /**
@@ -133,47 +136,53 @@ class SearchSitemapPages
             ->select([
                 'sitemap_pages.id as page_id',
                 'sitemap_pages.url as url',
+                'sitemap_pages.article_text_sha256 as text_sha256',
             ])
             ->selectVectorDistance('sitemap_page_embeddings.embedding', $vector, 'distance')
             ->orderBy('distance')
             ->orderBy('sitemap_pages.id')
             ->get();
 
-        /** @var list<array{id: int, distance: float, url: string}> $ranked */
+        /** @var list<array{id: int, distance: float, url: string, text: string}> $ranked */
         $ranked = [];
 
         foreach ($rows as $row) {
             $url = $row->url;
+            $text = $row->text_sha256;
 
-            if (! is_numeric($row->page_id) || ! is_string($url) || $url === '' || ! is_numeric($row->distance)) {
+            if (! is_numeric($row->page_id) || ! is_string($url) || $url === '' || ! is_string($text) || ! is_numeric($row->distance)) {
                 continue;
             }
 
-            $ranked[] = ['id' => (int) $row->page_id, 'distance' => (float) $row->distance, 'url' => $url];
+            $ranked[] = ['id' => (int) $row->page_id, 'distance' => (float) $row->distance, 'url' => $url, 'text' => $text];
         }
 
-        return $this->firstPerUrl($ranked, $limit);
+        return $this->firstPerUrlAndText($ranked, $limit);
     }
 
     /**
      * 行は近い順、同じ距離ならページ ID の小さい順に渡す。
-     * 同じ URL は最初の行だけを残す。同じページの行は URL も同じなので、最も近い行が残る。
+     * 同じ URL と同じ採用本文は最初の行だけを残す。サイトは同じ記事を別の URL でも載せるので、URL だけでは除けない。
+     * 同じページの行は URL も同じなので、最も近い行が残る。
      *
-     * @param  list<array{id: int, distance: float, url: string}>  $ranked
+     * @param  list<array{id: int, distance: float, url: string, text: string}>  $ranked
      * @return list<array{id: int, relevance: float}>
      */
-    private function firstPerUrl(array $ranked, int $limit): array
+    private function firstPerUrlAndText(array $ranked, int $limit): array
     {
         $matches = [];
         /** @var array<string, true> $seenUrls */
         $seenUrls = [];
+        /** @var array<string, true> $seenTexts */
+        $seenTexts = [];
 
         foreach ($ranked as $row) {
-            if (isset($seenUrls[$row['url']])) {
+            if (isset($seenUrls[$row['url']]) || isset($seenTexts[$row['text']])) {
                 continue;
             }
 
             $seenUrls[$row['url']] = true;
+            $seenTexts[$row['text']] = true;
             $matches[] = [
                 'id' => $row['id'],
                 'relevance' => 1.0 - $row['distance'],
@@ -188,7 +197,7 @@ class SearchSitemapPages
     }
 
     /**
-     * 本文に検索語がそのまま含まれるページ。ベクトルの近傍ではない。
+     * 本文に検索語がそのまま含まれるページ。ベクトルの近傍ではない。同じ URL と同じ採用本文は、ページ ID の小さい方だけを返す。
      * 全件を走査するので、HTML 全体を持つ body ではなく、一緒に保存する body_sha256 で本文の有無を見る。
      *
      * @return list<int>
@@ -197,7 +206,11 @@ class SearchSitemapPages
     {
         $pattern = '%'.$this->escapeLike($term).'%';
         $rows = DB::table('sitemap_pages')
-            ->selectRaw('MIN(sitemap_pages.id) as page_id')
+            ->select([
+                'sitemap_pages.id as page_id',
+                'sitemap_pages.url as url',
+                'sitemap_pages.article_text_sha256 as text_sha256',
+            ])
             ->join('sitemaps', 'sitemaps.id', '=', 'sitemap_pages.sitemap_id')
             ->where('sitemap_pages.searchable', true)
             ->where('sitemaps.searchable', true)
@@ -213,19 +226,34 @@ class SearchSitemapPages
             })
             ->whereNotNull('sitemap_pages.article_text')
             ->whereRaw('sitemap_pages.article_text LIKE ? ESCAPE ?', [$pattern, '\\'])
-            ->groupBy('sitemap_pages.url')
-            ->orderByRaw('MIN(sitemap_pages.id)')
-            ->limit($limit)
-            ->get();
+            ->orderBy('sitemap_pages.id')
+            ->cursor();
 
         $ids = [];
+        /** @var array<string, true> $seenUrls */
+        $seenUrls = [];
+        /** @var array<string, true> $seenTexts */
+        $seenTexts = [];
 
         foreach ($rows as $row) {
-            if (! is_numeric($row->page_id)) {
+            $url = $row->url;
+            $text = $row->text_sha256;
+
+            if (! is_numeric($row->page_id) || ! is_string($url) || ! is_string($text)) {
                 continue;
             }
 
+            if (isset($seenUrls[$url]) || isset($seenTexts[$text])) {
+                continue;
+            }
+
+            $seenUrls[$url] = true;
+            $seenTexts[$text] = true;
             $ids[] = (int) $row->page_id;
+
+            if (count($ids) === $limit) {
+                break;
+            }
         }
 
         return $ids;
