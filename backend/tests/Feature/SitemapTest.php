@@ -817,7 +817,7 @@ class SitemapTest extends TestCase
             'https://example.com/down' => fn () => throw new ConnectionException('down'),
         ]);
 
-        $crawledAt = now()->subDays(30);
+        $crawledAt = now()->subDays(8);
         $page = SitemapPage::query()->create([
             'sitemap_id' => $this->completedSitemap()->id,
             'url' => 'https://example.com/down',
@@ -897,7 +897,7 @@ class SitemapTest extends TestCase
     {
         Http::preventStrayRequests();
         Http::fake([
-            'https://example.com/back' => Http::response('missing', 500),
+            'https://example.com/back' => Http::response('back', 200),
         ]);
 
         $page = SitemapPage::query()->create([
@@ -910,10 +910,115 @@ class SitemapTest extends TestCase
         (new CrawlDueSitemapPages(0, 3600))->run();
 
         $page->refresh();
-        $this->assertSame(500, $page->http_status);
+        $this->assertSame(200, $page->http_status);
         $this->assertSame(0, $page->fetch_failure_count);
         $this->assertNull($page->fetch_retry_at);
         $this->assertNull($page->error_message);
+    }
+
+    public function test_an_error_response_keeps_the_stored_body_and_embeddings(): void
+    {
+        $this->freezeSecond();
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://example.com/forbidden' => Http::response('blocked', 403),
+            'https://example.com/broken' => Http::response('error', 500),
+            'https://example.com/maintenance' => Http::response('maintenance', 503),
+            'https://example.com/new' => Http::response('maintenance', 503),
+        ]);
+
+        $sitemap = $this->completedSitemap();
+        $crawledAt = now()->subDays(8);
+        $pages = [];
+
+        foreach (['forbidden' => 403, 'broken' => 500, 'maintenance' => 503] as $path => $status) {
+            $page = SitemapPage::query()->create([
+                'sitemap_id' => $sitemap->id,
+                'url' => 'https://example.com/'.$path,
+                'http_status' => 200,
+                'response_bytes' => 4,
+                'body' => 'kept',
+                'body_sha256' => hash('sha256', 'kept'),
+                'article_text' => 'kept',
+                'extracted_at' => $crawledAt,
+                'crawled_at' => $crawledAt,
+            ]);
+            DB::table('sitemap_page_embeddings')->insert([
+                'sitemap_page_id' => $page->id,
+                'embedding' => json_encode(array_fill(0, 1536, 0.1)),
+                'article_text_sha256' => $page->article_text_sha256,
+                'embedded_at' => $crawledAt,
+            ]);
+            $pages[$status] = $page;
+        }
+
+        $fresh = SitemapPage::query()->create([
+            'sitemap_id' => $sitemap->id,
+            'url' => 'https://example.com/new',
+        ]);
+
+        (new CrawlDueSitemapPages(0, 3600))->run();
+
+        foreach ($pages as $status => $page) {
+            $page->refresh();
+            $message = '取得に失敗しました（HTTP '.$status.'）。';
+            $this->assertSame($status, $page->http_status);
+            $this->assertSame($message, $page->error_message);
+            $this->assertSame(1, $page->fetch_failure_count);
+            $this->assertTrue(now()->addMinute()->equalTo($page->fetch_retry_at));
+            $this->assertTrue($crawledAt->equalTo($page->crawled_at));
+            $this->assertSame(4, $page->response_bytes);
+            $this->assertSame('kept', $page->body);
+            $this->assertSame(hash('sha256', 'kept'), $page->body_sha256);
+            $this->assertSame('kept', $page->article_text);
+            $this->assertTrue($crawledAt->equalTo($page->extracted_at));
+            $this->assertSame(1, $page->embeddings()->count());
+            $this->assertTrue(SitemapPage::query()->forSearch()->whereKey($page->id)->exists());
+            $this->assertDatabaseHas('crawl_error_logs', [
+                'kind' => CrawlErrorKind::Page->value,
+                'sitemap_page_id' => $page->id,
+                'http_status' => $status,
+                'message' => $message,
+            ]);
+        }
+
+        $fresh->refresh();
+        $this->assertNull($fresh->crawled_at);
+        $this->assertSame(503, $fresh->http_status);
+        $this->assertNull($fresh->body);
+        $this->assertNull($fresh->article_text);
+        $this->assertSame(1, $fresh->fetch_failure_count);
+        $this->assertSame('取得に失敗しました（HTTP 503）。', $fresh->error_message);
+    }
+
+    public function test_an_immediate_page_crawl_reports_an_error_response(): void
+    {
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://example.com/maintenance' => Http::response('maintenance', 503),
+        ]);
+
+        $sitemap = $this->completedSitemap();
+        $crawledAt = now()->subDay();
+        $page = SitemapPage::query()->create([
+            'sitemap_id' => $sitemap->id,
+            'url' => 'https://example.com/maintenance',
+            'http_status' => 200,
+            'body' => 'old',
+            'body_sha256' => hash('sha256', 'old'),
+            'crawled_at' => $crawledAt,
+        ]);
+
+        $this->actingAs(User::factory()->create())
+            ->postJson('/manager/sitemaps/'.$sitemap->id.'/pages/'.$page->id.'/crawl')
+            ->assertOk()
+            ->assertJson([
+                'http_status' => 503,
+                'error_message' => '取得に失敗しました（HTTP 503）。',
+                'crawled_at' => $crawledAt->format('Y-m-d H:i'),
+            ]);
+
+        $this->assertSame('old', $page->refresh()->body);
     }
 
     public function test_an_http_404_is_treated_as_a_failed_fetch(): void
@@ -2123,6 +2228,61 @@ class SitemapTest extends TestCase
             [$listed->id, $unknown->id],
             SitemapPage::query()->forSearch()->orderBy('id')->pluck('id')->all(),
         );
+    }
+
+    public function test_a_page_that_keeps_failing_leaves_search_ten_days_after_its_last_fetch(): void
+    {
+        $this->freezeSecond();
+        $lastFetch = now()->subDays(SitemapPage::SEARCH_STALE_DAYS);
+        $values = [
+            'sitemap_id' => $this->completedSitemap()->id,
+            'http_status' => 503,
+            'response_bytes' => 4,
+            'body' => 'kept',
+            'body_sha256' => hash('sha256', 'kept'),
+            'article_text' => 'kept',
+            'extracted_at' => $lastFetch,
+            'fetch_failure_count' => 1,
+        ];
+        $failing = SitemapPage::query()->create([
+            ...$values,
+            'url' => 'https://example.com/failing',
+            'crawled_at' => $lastFetch,
+        ]);
+        $retrying = SitemapPage::query()->create([
+            ...$values,
+            'url' => 'https://example.com/retrying',
+            'crawled_at' => $lastFetch->copy()->addSecond(),
+        ]);
+        $idle = SitemapPage::query()->create([
+            ...$values,
+            'url' => 'https://example.com/idle',
+            'http_status' => 200,
+            'fetch_failure_count' => 0,
+            'crawled_at' => now()->subDays(30),
+        ]);
+        DB::table('sitemap_page_embeddings')->insert([
+            'sitemap_page_id' => $failing->id,
+            'embedding' => json_encode(array_fill(0, 1536, 0.1)),
+            'article_text_sha256' => $failing->article_text_sha256,
+            'embedded_at' => $lastFetch,
+        ]);
+
+        $this->assertSame(
+            [$retrying->id, $idle->id],
+            SitemapPage::query()->forSearch()->orderBy('id')->pluck('id')->all(),
+        );
+        $this->assertSame('kept', $failing->refresh()->article_text);
+        $this->assertSame(1, $failing->embeddings()->count());
+
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://example.com/failing' => Http::response('kept', 200),
+        ]);
+        (new CrawlSitemapPage($failing->id))->handle();
+
+        $this->assertTrue(SitemapPage::query()->forSearch()->whereKey($failing->id)->exists());
+        $this->assertSame(1, $failing->embeddings()->count());
     }
 
     public function test_the_url_list_shows_when_a_page_left_the_sitemap(): void

@@ -29,7 +29,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $embedding_retry_at この日時まではベクトル化を試さない。
  * @property ExtractionStatus|null $extraction_status 本文を採用できたとき、未抽出のときは null。
  * @property Carbon|null $extracted_at
- * @property Carbon|null $crawled_at 取得できた日時。接続できなかったときと HTTP 404 のときは更新しない。
+ * @property Carbon|null $crawled_at 取得できた日時。接続できなかったときと 2xx 以外の応答のときは更新しない。
  * @property string|null $error_message
  * @property int $fetch_failure_count 取得に失敗し続けた回数。取得できたら 0 に戻す。
  * @property Carbon|null $fetch_retry_at この日時までは定期の巡回で取得しない。過ぎたら取得日時にかかわらず取り直す。
@@ -54,6 +54,9 @@ use Illuminate\Support\Carbon;
 ])]
 class SitemapPage extends Model
 {
+    /** 取得に失敗し続けるページを、最後に取得できてからこの日数で検索から外す。本文とベクトルは残す。 */
+    public const SEARCH_STALE_DAYS = 10;
+
     /**
      * 抜き直しの直前だけ true。本文ハッシュを一時的に空にしてもベクトル行は残す。
      */
@@ -153,7 +156,8 @@ class SitemapPage extends Model
     }
 
     /**
-     * サイト内検索に出すページ。サイトマップとページの検索対象が ON、掲載中、本文があり、HTTP 404 ではないもの。
+     * サイト内検索に出すページ。サイトマップとページの検索対象が ON、掲載中、本文があり、HTTP 404 ではなく、
+     * 取得失敗が続いていないか、最後に取得できてから SEARCH_STALE_DAYS 日経っていないもの。
      *
      * @param  Builder<SitemapPage>  $query
      */
@@ -168,6 +172,10 @@ class SitemapPage extends Model
             ->where(function (Builder $query): void {
                 $query->whereNull('http_status')
                     ->orWhere('http_status', '<>', 404);
+            })
+            ->where(function (Builder $query): void {
+                $query->where('fetch_failure_count', 0)
+                    ->orWhere('crawled_at', '>', now()->subDays(self::SEARCH_STALE_DAYS));
             });
     }
 

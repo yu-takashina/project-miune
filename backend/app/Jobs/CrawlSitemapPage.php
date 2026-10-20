@@ -61,6 +61,13 @@ class CrawlSitemapPage implements ShouldQueue
             return;
         }
 
+        if (! $response->successful()) {
+            $response->toPsrResponse()->getBody()->close();
+            $this->markErrorResponse($page, $response->status());
+
+            return;
+        }
+
         $this->storeResponse($page, $response);
     }
 
@@ -257,6 +264,22 @@ class CrawlSitemapPage implements ShouldQueue
             'fetch_retry_at' => RetryBackoff::nextAt($failures),
         ]);
         $page->embeddings()->delete();
+    }
+
+    /**
+     * 404 以外の 2xx でない応答は、接続できないときと同じく保存済みの本文と crawled_at を変えない。メンテナンス画面などの文面で本文とベクトルを置き換えないため。
+     */
+    private function markErrorResponse(SitemapPage $page, int $status): void
+    {
+        $message = '取得に失敗しました（HTTP '.$status.'）。';
+        $failures = $page->fetch_failure_count + 1;
+        CrawlErrorLog::forPage($page, $message, $status);
+        $page->update([
+            'http_status' => $status,
+            'error_message' => $message,
+            'fetch_failure_count' => $failures,
+            'fetch_retry_at' => RetryBackoff::nextAt($failures),
+        ]);
     }
 
     /**

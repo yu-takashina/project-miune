@@ -328,6 +328,15 @@ class SearchApiTest extends TestCase
         $this->page(Sitemap::factory()->create(), 'https://example.com/rain', [
             'article_text' => '別サイトの梅雨',
         ]);
+        $this->page($sitemap, 'https://example.com/failing', [
+            'article_text' => '梅雨の取得失敗',
+            'fetch_failure_count' => 1,
+        ]);
+        $this->page($sitemap, 'https://example.com/retrying', [
+            'article_text' => '梅雨の再試行中',
+            'fetch_failure_count' => 1,
+            'crawled_at' => now()->subDays(SitemapPage::SEARCH_STALE_DAYS - 1),
+        ]);
         $this->fakeEmbedding($this->vector(1.0));
         $this->fillLimit(SearchController::EMBEDDING_LIMIT_KEY, SearchController::EMBEDDINGS_PER_MINUTE);
 
@@ -336,6 +345,7 @@ class SearchApiTest extends TestCase
             ->assertExactJson([
                 ['url' => 'https://example.com/rain', 'article_text' => '今日は梅雨です'],
                 ['url' => 'https://example.com/unknown', 'article_text' => '梅雨明け'],
+                ['url' => 'https://example.com/retrying', 'article_text' => '梅雨の再試行中'],
             ]);
 
         $this->assertSame(0, $this->embeddingCalls());
