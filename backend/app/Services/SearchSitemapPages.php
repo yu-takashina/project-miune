@@ -31,30 +31,18 @@ class SearchSitemapPages
     }
 
     /**
-     * 検索対象のページの、今の採用本文のベクトル行。
-     * 全ページを走査するので、本文の有無は HTML 全体を持つ body ではなく body_sha256 で見る。
+     * 検索対象のページ（SitemapPage::scopeForSearch）の、今の採用本文のベクトル行。
      */
     private function searchableEmbeddings(): Builder
     {
-        return DB::table('sitemap_page_embeddings')
-            ->join('sitemap_pages', 'sitemap_pages.id', '=', 'sitemap_page_embeddings.sitemap_page_id')
-            ->join('sitemaps', 'sitemaps.id', '=', 'sitemap_pages.sitemap_id')
-            ->where('sitemap_pages.searchable', true)
-            ->where('sitemaps.searchable', true)
-            ->whereNull('sitemap_pages.unlisted_at')
-            ->whereNotNull('sitemap_pages.body_sha256')
-            ->where(function (Builder $query): void {
-                $query->whereNull('sitemap_pages.http_status')
-                    ->orWhere('sitemap_pages.http_status', '<>', 404);
-            })
-            ->where(function (Builder $query): void {
-                $query->where('sitemap_pages.fetch_failure_count', 0)
-                    ->orWhere('sitemap_pages.crawled_at', '>', now()->subDays(SitemapPage::SEARCH_STALE_DAYS));
-            })
+        return SitemapPage::query()
+            ->forSearch()
+            ->join('sitemap_page_embeddings', 'sitemap_page_embeddings.sitemap_page_id', '=', 'sitemap_pages.id')
             ->whereColumn(
                 'sitemap_page_embeddings.article_text_sha256',
                 'sitemap_pages.article_text_sha256',
-            );
+            )
+            ->toBase();
     }
 
     /**
@@ -197,36 +185,25 @@ class SearchSitemapPages
     }
 
     /**
-     * 本文に検索語がそのまま含まれるページ。ベクトルの近傍ではない。同じ URL と同じ採用本文は、ページ ID の小さい方だけを返す。
-     * 全件を走査するので、HTML 全体を持つ body ではなく、一緒に保存する body_sha256 で本文の有無を見る。
+     * 検索対象のページ（SitemapPage::scopeForSearch）のうち、本文に検索語がそのまま含まれるもの。ベクトルの近傍ではない。
+     * 同じ URL と同じ採用本文は、ページ ID の小さい方だけを返す。
      *
      * @return list<int>
      */
     public function containing(string $term, int $limit = self::LIMIT): array
     {
         $pattern = '%'.$this->escapeLike($term).'%';
-        $rows = DB::table('sitemap_pages')
+        $rows = SitemapPage::query()
+            ->forSearch()
+            ->whereNotNull('sitemap_pages.article_text')
+            ->whereRaw('sitemap_pages.article_text LIKE ? ESCAPE ?', [$pattern, '\\'])
+            ->orderBy('sitemap_pages.id')
+            ->toBase()
             ->select([
                 'sitemap_pages.id as page_id',
                 'sitemap_pages.url as url',
                 'sitemap_pages.article_text_sha256 as text_sha256',
             ])
-            ->join('sitemaps', 'sitemaps.id', '=', 'sitemap_pages.sitemap_id')
-            ->where('sitemap_pages.searchable', true)
-            ->where('sitemaps.searchable', true)
-            ->whereNull('sitemap_pages.unlisted_at')
-            ->whereNotNull('sitemap_pages.body_sha256')
-            ->where(function (Builder $query): void {
-                $query->whereNull('sitemap_pages.http_status')
-                    ->orWhere('sitemap_pages.http_status', '<>', 404);
-            })
-            ->where(function (Builder $query): void {
-                $query->where('sitemap_pages.fetch_failure_count', 0)
-                    ->orWhere('sitemap_pages.crawled_at', '>', now()->subDays(SitemapPage::SEARCH_STALE_DAYS));
-            })
-            ->whereNotNull('sitemap_pages.article_text')
-            ->whereRaw('sitemap_pages.article_text LIKE ? ESCAPE ?', [$pattern, '\\'])
-            ->orderBy('sitemap_pages.id')
             ->cursor();
 
         $ids = [];

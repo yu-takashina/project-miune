@@ -2182,6 +2182,7 @@ class SitemapTest extends TestCase
             'url' => 'https://example.com/listed',
             'searchable' => true,
             'body' => 'listed',
+            'body_sha256' => hash('sha256', 'listed'),
             'http_status' => 200,
         ]);
         $unknown = SitemapPage::query()->create([
@@ -2189,12 +2190,14 @@ class SitemapTest extends TestCase
             'url' => 'https://example.com/unknown',
             'searchable' => true,
             'body' => 'unknown',
+            'body_sha256' => hash('sha256', 'unknown'),
         ]);
         SitemapPage::query()->create([
             'sitemap_id' => $sitemap->id,
             'url' => 'https://example.com/missing',
             'searchable' => true,
             'body' => 'missing',
+            'body_sha256' => hash('sha256', 'missing'),
             'http_status' => 404,
         ]);
         SitemapPage::query()->create([
@@ -2202,6 +2205,7 @@ class SitemapTest extends TestCase
             'url' => 'https://example.com/unlisted',
             'searchable' => true,
             'body' => 'unlisted',
+            'body_sha256' => hash('sha256', 'unlisted'),
             'unlisted_at' => now(),
         ]);
         SitemapPage::query()->create([
@@ -2209,6 +2213,7 @@ class SitemapTest extends TestCase
             'url' => 'https://example.com/off',
             'searchable' => false,
             'body' => 'off',
+            'body_sha256' => hash('sha256', 'off'),
         ]);
         SitemapPage::query()->create([
             'sitemap_id' => $sitemap->id,
@@ -2221,6 +2226,7 @@ class SitemapTest extends TestCase
             'url' => 'https://example.com/sitemap-off',
             'searchable' => true,
             'body' => 'sitemap-off',
+            'body_sha256' => hash('sha256', 'sitemap-off'),
             'http_status' => 200,
         ]);
 
