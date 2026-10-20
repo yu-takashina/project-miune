@@ -13,12 +13,13 @@ use Illuminate\Support\Carbon;
 /**
  * @property string $url
  * @property string $url_sha256
+ * @property bool $searchable
  * @property SitemapStatus $status
  * @property string|null $error_message
  * @property int|null $absence_limit
  * @property Carbon|null $crawled_at sitemap.xml を読み込めた日時。失敗したときは更新しない。
  */
-#[Fillable(['url', 'status', 'error_message', 'absence_limit', 'crawled_at'])]
+#[Fillable(['url', 'status', 'error_message', 'absence_limit', 'crawled_at', 'searchable'])]
 class Sitemap extends Model
 {
     /** @use HasFactory<SitemapFactory> */
@@ -26,6 +27,13 @@ class Sitemap extends Model
 
     /** 連続して sitemap から外れた URL を削除するまでの回数。null は削除しない。 */
     public const DEFAULT_ABSENCE_LIMIT = 1;
+
+    /**
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'searchable' => true,
+    ];
 
     protected static function booted(): void
     {
@@ -40,6 +48,7 @@ class Sitemap extends Model
     protected function casts(): array
     {
         return [
+            'searchable' => 'boolean',
             'status' => SitemapStatus::class,
             'absence_limit' => 'integer',
             'crawled_at' => 'datetime',

@@ -27,6 +27,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/manager/sitemaps/{sitemap}', [SitemapController::class, 'show'])->name('manager.sitemaps.show');
     Route::patch('/manager/sitemaps/{sitemap}/pages/{page}', [SitemapController::class, 'updateSearchable'])->name('manager.sitemaps.pages.searchable');
     Route::post('/manager/sitemaps/{sitemap}/pages/{page}/crawl', [SitemapController::class, 'crawl'])->name('manager.sitemaps.pages.crawl');
+    Route::patch('/manager/sitemaps/{sitemap}/searchable', [SitemapController::class, 'updateSitemapSearchable'])->name('manager.sitemaps.searchable');
     Route::patch('/manager/sitemaps/{sitemap}/absence-limit', [SitemapController::class, 'updateAbsenceLimit'])->name('manager.sitemaps.absence-limit');
     Route::delete('/manager/sitemaps/{sitemap}', [SitemapController::class, 'destroy'])->name('manager.sitemaps.destroy');
 });

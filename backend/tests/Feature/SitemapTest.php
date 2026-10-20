@@ -127,6 +127,7 @@ class SitemapTest extends TestCase
 
         $sitemap->refresh();
         $this->assertSame(SitemapStatus::Completed, $sitemap->status);
+        $this->assertTrue($sitemap->searchable);
         $this->assertNull($sitemap->error_message);
         $this->assertNotNull($sitemap->crawled_at);
         $this->assertSame(2, $sitemap->pages()->count());
@@ -2090,6 +2091,14 @@ class SitemapTest extends TestCase
             'url' => 'https://example.com/empty',
             'searchable' => true,
         ]);
+        $offSitemap = Sitemap::factory()->create(['searchable' => false]);
+        SitemapPage::query()->create([
+            'sitemap_id' => $offSitemap->id,
+            'url' => 'https://example.com/sitemap-off',
+            'searchable' => true,
+            'body' => 'sitemap-off',
+            'http_status' => 200,
+        ]);
 
         $this->assertSame(
             [$listed->id, $unknown->id],
@@ -2527,6 +2536,59 @@ class SitemapTest extends TestCase
             ->assertOk()
             ->assertSee('data-absence-limit=""', false)
             ->assertSee('削除しない');
+    }
+
+    public function test_a_sitemap_is_included_in_search_until_it_is_turned_off(): void
+    {
+        $sitemap = Sitemap::factory()->create([
+            'url' => 'https://example.com/sitemap.xml',
+        ]);
+        $user = User::factory()->create();
+
+        $this->assertTrue($sitemap->searchable);
+
+        $this->actingAs($user)
+            ->get('/manager/sitemap')
+            ->assertOk()
+            ->assertSeeInOrder(['検索対象', 'URL'])
+            ->assertSee('aria-checked="true"', false)
+            ->assertSee('aria-label="検索対象"', false)
+            ->assertDontSee('data-search-off', false);
+
+        $this->actingAs($user)
+            ->patchJson('/manager/sitemaps/'.$sitemap->id.'/searchable', [
+                'searchable' => false,
+            ])
+            ->assertOk()
+            ->assertExactJson(['searchable' => false]);
+
+        $this->assertFalse($sitemap->refresh()->searchable);
+
+        $this->actingAs($user)
+            ->get('/manager/sitemap')
+            ->assertOk()
+            ->assertSee('aria-checked="false"', false)
+            ->assertSee('data-search-off="true"', false);
+
+        $this->actingAs($user)
+            ->patchJson('/manager/sitemaps/'.$sitemap->id.'/searchable', [
+                'searchable' => true,
+            ])
+            ->assertOk()
+            ->assertExactJson(['searchable' => true]);
+
+        $this->assertTrue($sitemap->refresh()->searchable);
+    }
+
+    public function test_guests_cannot_change_whether_a_sitemap_is_searchable(): void
+    {
+        $sitemap = Sitemap::factory()->create();
+
+        $this->patchJson('/manager/sitemaps/'.$sitemap->id.'/searchable', [
+            'searchable' => false,
+        ])->assertUnauthorized();
+
+        $this->assertTrue($sitemap->refresh()->searchable);
     }
 
     public function test_guests_cannot_change_the_absence_limit(): void
