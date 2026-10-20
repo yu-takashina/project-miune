@@ -156,26 +156,29 @@ class SitemapPage extends Model
     }
 
     /**
-     * サイト内検索に出すページ。サイトマップとページの検索対象が ON、掲載中、本文があり、HTTP 404 ではなく、
+     * サイト内検索に出すページ。管理画面の検索と検索 API は、この条件に探し方ごとの条件を足して探す。
+     * サイトマップとページの検索対象が ON、掲載中、本文があり、HTTP 404 ではなく、
      * 取得失敗が続いていないか、最後に取得できてから SEARCH_STALE_DAYS 日経っていないもの。
+     * 全件を走査するので、本文の有無は HTML 全体を持つ body ではなく、一緒に保存する body_sha256 で見る。
+     * ベクトル行と結合しても列名がぶつからないよう、テーブル名を付ける。
      *
      * @param  Builder<SitemapPage>  $query
      */
     public function scopeForSearch(Builder $query): void
     {
-        $query->where('searchable', true)
+        $query->where($query->qualifyColumn('searchable'), true)
             ->whereHas('sitemap', function (Builder $query): void {
-                $query->where('searchable', true);
+                $query->where($query->qualifyColumn('searchable'), true);
             })
-            ->whereNull('unlisted_at')
-            ->whereNotNull('body')
+            ->whereNull($query->qualifyColumn('unlisted_at'))
+            ->whereNotNull($query->qualifyColumn('body_sha256'))
             ->where(function (Builder $query): void {
-                $query->whereNull('http_status')
-                    ->orWhere('http_status', '<>', 404);
+                $query->whereNull($query->qualifyColumn('http_status'))
+                    ->orWhere($query->qualifyColumn('http_status'), '<>', 404);
             })
             ->where(function (Builder $query): void {
-                $query->where('fetch_failure_count', 0)
-                    ->orWhere('crawled_at', '>', now()->subDays(self::SEARCH_STALE_DAYS));
+                $query->where($query->qualifyColumn('fetch_failure_count'), 0)
+                    ->orWhere($query->qualifyColumn('crawled_at'), '>', now()->subDays(self::SEARCH_STALE_DAYS));
             });
     }
 
