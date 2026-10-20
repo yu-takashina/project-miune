@@ -27,7 +27,8 @@ if ($apiBase === '') {
     respond(500, ['message' => '検索APIの接続先が未設定です。']);
 }
 
-$query = trim((string) ($_GET['q'] ?? ''));
+$rawQuery = $_GET['q'] ?? '';
+$query = trim(is_string($rawQuery) ? $rawQuery : '');
 $url = rtrim($apiBase, '/').'/api/search?'.http_build_query(['q' => $query]);
 $context = stream_context_create([
     'http' => [
@@ -62,6 +63,7 @@ echo $body;
 
 function env_string(string $name): string
 {
+    /** @var array<string, string>|null $values */
     static $values = null;
 
     if ($values === null) {
@@ -159,7 +161,7 @@ function search_retry_after(string $address): ?int
         $retryAfter = null;
 
         if (count($hits) > SEARCH_RATE_LIMIT) {
-            $hits = array_values(array_slice($hits, -SEARCH_RATE_LIMIT));
+            $hits = array_slice($hits, -SEARCH_RATE_LIMIT);
             $retryAfter = max(1, $hits[0] + SEARCH_RATE_WINDOW_SECONDS - $now);
         }
 

@@ -8,10 +8,11 @@
 
 ## 実行
 
-PHP はフロントのコンテナで実行する。`docker compose` はリポジトリのルートで実行する。
+PHP、Composer、PHPStan はフロントのコンテナで実行する。`docker compose` はリポジトリのルートで実行する。
 
 ```bash
 docker compose exec -T frontend php …
+docker compose exec -T frontend vendor/bin/phpstan analyse --no-progress
 ```
 
 ブラウザは http://localhost:8015 。ドキュメントルートは `public/`。
@@ -19,6 +20,8 @@ docker compose exec -T frontend php …
 検索は `public/search.php` が `.env` の `API_BASE` と `API_KEY` を読み、`API_BASE` の `/api/search` を呼ぶ。
 
 ## 変更したあと
+
+`public/` の PHP を変えたら、PHPStan（`phpstan.neon` の level 10。設定は緩めない）を通し、エラー 0 件で終える。
 
 画面を変えたら、ブラウザで http://localhost:8015 を確認する。
 
