@@ -1176,6 +1176,7 @@ class SitemapTest extends TestCase
             ->assertSee('2026-10-13 17:00')
             ->assertSee('検索対象')
             ->assertSee('aria-checked="true"', false)
+            ->assertSee('data-search-toggle-notice', false)
             ->assertDontSee('data-search-state', false)
             ->assertDontSee('secret-body');
     }
@@ -1585,7 +1586,8 @@ class SitemapTest extends TestCase
             ->get('/manager/sitemaps/'.$sitemap->id)
             ->assertOk()
             ->assertSee('今すぐ巡回')
-            ->assertSee('data-crawl', false);
+            ->assertSee('data-crawl', false)
+            ->assertSee('data-crawl-notice', false);
 
         $this->actingAs($user)
             ->postJson('/manager/sitemaps/'.$sitemap->id.'/pages/'.$page->id.'/crawl')
