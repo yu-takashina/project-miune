@@ -32,7 +32,7 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $crawled_at 取得できた日時。接続できなかったときと HTTP 404 のときは更新しない。
  * @property string|null $error_message
  * @property int $fetch_failure_count 取得に失敗し続けた回数。取得できたら 0 に戻す。
- * @property Carbon|null $fetch_retry_at この日時までは定期の巡回で取得しない。
+ * @property Carbon|null $fetch_retry_at この日時までは定期の巡回で取得しない。過ぎたら取得日時にかかわらず取り直す。
  */
 #[Fillable([
     'sitemap_id',

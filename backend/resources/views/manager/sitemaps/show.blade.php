@@ -130,7 +130,8 @@
                                         <p class="mt-1 text-[#f53003]">サイトマップから外れた</p>
                                     @endif
                                 </td>
-                                <td @class(['px-3 py-2', 'text-[#f53003]' => filled($page->error_message)]) data-crawl-status>{{ filled($page->error_message) ? $page->error_message : $page->http_status }}</td>
+                                @php($statusLabel = filled($page->error_message) ? $page->error_message : $page->http_status)
+                                <td @class(['px-3 py-2', 'text-[#f53003]' => filled($statusLabel) && (string) $statusLabel !== '200']) data-crawl-status>{{ $statusLabel }}</td>
                                 <td class="px-3 py-2" data-crawl-size>{{ $page->formattedResponseSize() }}</td>
                                 <td class="px-3 py-2" data-crawl-time>{{ $page->crawled_at?->format('Y-m-d H:i') }}</td>
                                 <td class="px-3 py-2">

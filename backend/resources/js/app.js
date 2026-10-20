@@ -660,9 +660,10 @@ function setCrawlStatus(row, httpStatus, errorMessage) {
     }
 
     const message = typeof errorMessage === 'string' ? errorMessage : '';
+    const text = message !== '' ? message : (httpStatus === null || httpStatus === undefined ? '' : String(httpStatus));
 
-    cell.textContent = message !== '' ? message : (httpStatus === null || httpStatus === undefined ? '' : String(httpStatus));
-    cell.classList.toggle('text-[#f53003]', message !== '');
+    cell.textContent = text;
+    cell.classList.toggle('text-[#f53003]', text !== '' && text !== '200');
 }
 
 function setCellText(row, selector, value) {

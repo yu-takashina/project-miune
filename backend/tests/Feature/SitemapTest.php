@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\CrawlErrorKind;
+use App\Enums\ExtractionStatus;
 use App\Enums\SitemapStatus;
 use App\Jobs\CrawlSitemapPage;
 use App\Jobs\InspectSitemap;
@@ -750,9 +751,18 @@ class SitemapTest extends TestCase
         $page = SitemapPage::query()->create([
             'sitemap_id' => $this->completedSitemap()->id,
             'url' => 'https://example.com/down',
+            'http_status' => 200,
+            'response_bytes' => 4,
             'body' => 'kept',
             'body_sha256' => hash('sha256', 'kept'),
+            'article_text' => 'kept',
             'crawled_at' => $crawledAt,
+        ]);
+        DB::table('sitemap_page_embeddings')->insert([
+            'sitemap_page_id' => $page->id,
+            'embedding' => json_encode(array_fill(0, 1536, 0.1)),
+            'article_text_sha256' => $page->article_text_sha256,
+            'embedded_at' => $crawledAt,
         ]);
 
         (new CrawlDueSitemapPages(0, 3600))->run();
@@ -761,7 +771,12 @@ class SitemapTest extends TestCase
         $this->assertSame(1, $page->fetch_failure_count);
         $this->assertTrue(now()->addMinute()->equalTo($page->fetch_retry_at));
         $this->assertTrue($crawledAt->equalTo($page->crawled_at));
+        $this->assertNull($page->http_status);
+        $this->assertSame(4, $page->response_bytes);
         $this->assertSame('kept', $page->body);
+        $this->assertSame('kept', $page->article_text);
+        $this->assertSame(1, $page->embeddings()->count());
+        $this->assertTrue(SitemapPage::query()->forSearch()->whereKey($page->id)->exists());
         $this->assertSame('取得に失敗しました。', $page->error_message);
         $this->assertDatabaseHas('crawl_error_logs', [
             'kind' => CrawlErrorKind::Page->value,
@@ -845,10 +860,24 @@ class SitemapTest extends TestCase
             'sitemap_id' => $this->completedSitemap()->id,
             'url' => 'https://example.com/missing',
             'http_status' => 200,
+            'response_bytes' => 4,
             'body' => 'kept',
             'body_sha256' => hash('sha256', 'kept'),
             'article_text' => 'kept',
+            'extraction_status' => ExtractionStatus::Empty,
+            'extracted_at' => $crawledAt,
             'crawled_at' => $crawledAt,
+        ]);
+        $page->embedding_error = '古い失敗';
+        $page->embedding_failed_sha256 = hash('sha256', 'kept');
+        $page->embedding_failure_count = 2;
+        $page->embedding_retry_at = now()->addHour();
+        $page->save();
+        DB::table('sitemap_page_embeddings')->insert([
+            'sitemap_page_id' => $page->id,
+            'embedding' => json_encode(array_fill(0, 1536, 0.1)),
+            'article_text_sha256' => $page->article_text_sha256,
+            'embedded_at' => $crawledAt,
         ]);
         $fresh = SitemapPage::query()->create([
             'sitemap_id' => $page->sitemap_id,
@@ -858,13 +887,24 @@ class SitemapTest extends TestCase
         (new CrawlDueSitemapPages(0, 3600))->run();
 
         $page->refresh();
-        $this->assertSame(200, $page->http_status);
-        $this->assertSame('kept', $page->body);
-        $this->assertSame('kept', $page->article_text);
+        $this->assertSame(404, $page->http_status);
+        $this->assertNull($page->response_bytes);
+        $this->assertNull($page->body);
+        $this->assertNull($page->body_sha256);
+        $this->assertNull($page->article_text);
+        $this->assertNull($page->article_text_sha256);
+        $this->assertNull($page->extraction_status);
+        $this->assertNull($page->extracted_at);
+        $this->assertNull($page->embedding_error);
+        $this->assertNull($page->embedding_failed_sha256);
+        $this->assertSame(0, $page->embedding_failure_count);
+        $this->assertNull($page->embedding_retry_at);
+        $this->assertSame(0, $page->embeddings()->count());
         $this->assertTrue($crawledAt->equalTo($page->crawled_at));
         $this->assertSame(1, $page->fetch_failure_count);
         $this->assertTrue(now()->addMinute()->equalTo($page->fetch_retry_at));
-        $this->assertSame('取得に失敗しました。', $page->error_message);
+        $this->assertNull($page->error_message);
+        $this->assertFalse(SitemapPage::query()->forSearch()->whereKey($page->id)->exists());
         $this->assertDatabaseHas('crawl_error_logs', [
             'kind' => CrawlErrorKind::Page->value,
             'sitemap_page_id' => $page->id,
@@ -874,10 +914,49 @@ class SitemapTest extends TestCase
 
         $fresh->refresh();
         $this->assertNull($fresh->crawled_at);
-        $this->assertNull($fresh->http_status);
+        $this->assertSame(404, $fresh->http_status);
         $this->assertNull($fresh->body);
         $this->assertSame(1, $fresh->fetch_failure_count);
-        $this->assertSame('取得に失敗しました。', $fresh->error_message);
+        $this->assertNull($fresh->error_message);
+    }
+
+    public function test_a_recently_crawled_page_that_failed_is_retried_after_the_wait(): void
+    {
+        $this->freezeSecond();
+        Http::preventStrayRequests();
+        Http::fake([
+            'https://example.com/recent' => Http::sequence()
+                ->push('gone', 404)
+                ->push('back', 200),
+        ]);
+
+        $sitemap = $this->completedSitemap();
+        $page = SitemapPage::query()->create([
+            'sitemap_id' => $sitemap->id,
+            'url' => 'https://example.com/recent',
+            'http_status' => 200,
+            'body' => 'old',
+            'body_sha256' => hash('sha256', 'old'),
+            'crawled_at' => now()->subDay(),
+        ]);
+
+        $this->actingAs(User::factory()->create())
+            ->postJson('/manager/sitemaps/'.$sitemap->id.'/pages/'.$page->id.'/crawl')
+            ->assertOk()
+            ->assertJson(['http_status' => 404]);
+
+        (new CrawlDueSitemapPages(0, 3600))->run();
+        Http::assertSentCount(1);
+
+        $this->travel(1)->minutes();
+        (new CrawlDueSitemapPages(0, 3600))->run();
+
+        $page->refresh();
+        Http::assertSentCount(2);
+        $this->assertSame(200, $page->http_status);
+        $this->assertSame('back', $page->body);
+        $this->assertSame(0, $page->fetch_failure_count);
+        $this->assertNull($page->fetch_retry_at);
     }
 
     public function test_guests_cannot_view_sitemap_urls(): void
@@ -1099,9 +1178,9 @@ class SitemapTest extends TestCase
             ->get($base.'?status=other')
             ->assertOk()
             ->assertSee('https://example.com/moved')
+            ->assertSee('https://example.com/unknown')
             ->assertDontSee('https://example.com/ok')
             ->assertDontSee('https://example.com/missing')
-            ->assertDontSee('https://example.com/unknown')
             ->assertSee('value="other" selected', false);
 
         $this->actingAs($user)
@@ -1284,6 +1363,16 @@ class SitemapTest extends TestCase
         ]);
         SitemapPage::query()->create([
             'sitemap_id' => $sitemap->id,
+            'url' => 'https://example.com/missing',
+            'http_status' => 404,
+        ]);
+        SitemapPage::query()->create([
+            'sitemap_id' => $sitemap->id,
+            'url' => 'https://example.com/moved',
+            'http_status' => 301,
+        ]);
+        SitemapPage::query()->create([
+            'sitemap_id' => $sitemap->id,
             'url' => 'https://example.com/down',
             'error_message' => '取得に失敗しました。',
         ]);
@@ -1294,10 +1383,11 @@ class SitemapTest extends TestCase
             ->assertSee('ステータス')
             ->assertDontSee('エラー')
             ->assertDontSee('data-crawl-error', false)
-            ->assertSee('data-crawl-status>200', false)
-            ->assertSee('data-crawl-status>レスポンスが大きすぎます。', false)
-            ->assertSee('data-crawl-status>取得に失敗しました。', false)
-            ->assertSee('text-[#f53003]', false);
+            ->assertSee('class="px-3 py-2" data-crawl-status>200', false)
+            ->assertSee('class="px-3 py-2 text-[#f53003]" data-crawl-status>404', false)
+            ->assertSee('class="px-3 py-2 text-[#f53003]" data-crawl-status>301', false)
+            ->assertSee('class="px-3 py-2 text-[#f53003]" data-crawl-status>レスポンスが大きすぎます。', false)
+            ->assertSee('class="px-3 py-2 text-[#f53003]" data-crawl-status>取得に失敗しました。', false);
     }
 
     public function test_a_url_can_be_crawled_immediately(): void
@@ -1620,6 +1710,7 @@ class SitemapTest extends TestCase
             'body' => 'kept',
             'body_sha256' => hash('sha256', 'kept'),
             'http_status' => 404,
+            'crawled_at' => now(),
         ]);
         $dropped = SitemapPage::query()->create([
             'sitemap_id' => $sitemap->id,
