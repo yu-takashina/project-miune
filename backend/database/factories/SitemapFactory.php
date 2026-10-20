@@ -18,6 +18,7 @@ class SitemapFactory extends Factory
     {
         return [
             'url' => fake()->unique()->url(),
+            'searchable' => true,
             'status' => SitemapStatus::Pending,
             'error_message' => null,
             'absence_limit' => Sitemap::DEFAULT_ABSENCE_LIMIT,

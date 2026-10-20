@@ -85,11 +85,13 @@ class SearchApiTest extends TestCase
         $close = $this->page($sitemap, 'https://example.com/close');
         $far = $this->page($sitemap, 'https://example.com/far');
         $off = $this->page($sitemap, 'https://example.com/off', ['searchable' => false]);
+        $sitemapOff = $this->page(Sitemap::factory()->create(['searchable' => false]), 'https://example.com/sitemap-off');
         $vector = $this->vector(1.0);
         $this->insertEmbedding($close, $vector);
         $this->insertEmbedding($close, $this->vector(0.2, 0.8));
         $this->insertEmbedding($far, $this->vector(0.0, 1.0));
         $this->insertEmbedding($off, $vector);
+        $this->insertEmbedding($sitemapOff, $vector);
 
         $urls = [];
 
@@ -306,6 +308,9 @@ class SearchApiTest extends TestCase
         $this->page($sitemap, 'https://example.com/hidden', [
             'article_text' => '梅雨の非公開',
             'searchable' => false,
+        ]);
+        $this->page(Sitemap::factory()->create(['searchable' => false]), 'https://example.com/sitemap-off', [
+            'article_text' => '梅雨のサイトマップ対象外',
         ]);
         $this->page($sitemap, 'https://example.com/unlisted', [
             'article_text' => '梅雨の掲載終了',

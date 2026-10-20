@@ -187,6 +187,7 @@ class SearchResultTest extends TestCase
         $empty = $this->page($sitemap, 'https://example.com/empty', ['body' => null]);
         $missing = $this->page($sitemap, 'https://example.com/missing', ['http_status' => 404]);
         $unknown = $this->page($sitemap, 'https://example.com/unknown', ['http_status' => null]);
+        $sitemapOff = $this->page(Sitemap::factory()->create(['searchable' => false]), 'https://example.com/sitemap-off');
         $vector = $this->vector(1.0);
         $this->insertEmbedding($listed, $vector);
         $this->insertEmbedding($off, $vector);
@@ -195,6 +196,7 @@ class SearchResultTest extends TestCase
         $this->insertEmbedding($empty, $vector);
         $this->insertEmbedding($missing, $vector);
         $this->insertEmbedding($unknown, $vector);
+        $this->insertEmbedding($sitemapOff, $vector);
         $this->fakeEmbedding($vector);
 
         $this->get('/manager/search?q=対象')
@@ -205,7 +207,8 @@ class SearchResultTest extends TestCase
             ->assertDontSee('https://example.com/gone')
             ->assertDontSee('https://example.com/stale')
             ->assertDontSee('https://example.com/empty')
-            ->assertDontSee('https://example.com/missing');
+            ->assertDontSee('https://example.com/missing')
+            ->assertDontSee('https://example.com/sitemap-off');
     }
 
     public function test_the_same_url_on_another_sitemap_is_shown_once(): void

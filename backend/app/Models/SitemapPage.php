@@ -148,13 +148,16 @@ class SitemapPage extends Model
     }
 
     /**
-     * サイト内検索に出すページ。掲載中で、検索対象が ON、本文があり、HTTP 404 ではないもの。
+     * サイト内検索に出すページ。サイトマップとページの検索対象が ON、掲載中、本文があり、HTTP 404 ではないもの。
      *
      * @param  Builder<SitemapPage>  $query
      */
     public function scopeForSearch(Builder $query): void
     {
         $query->where('searchable', true)
+            ->whereHas('sitemap', function (Builder $query): void {
+                $query->where('searchable', true);
+            })
             ->whereNull('unlisted_at')
             ->whereNotNull('body')
             ->where(function (Builder $query): void {

@@ -12,7 +12,7 @@ class SearchSitemapPages
     public const LIMIT = 20;
 
     /**
-     * ベクトル索引から先に取る件数。検索対象外、古いベクトル、同じ URL を除いた残りを出すので、LIMIT に届かないことがある。
+     * ベクトル索引から先に取る件数。ページかサイトマップが検索対象外、古いベクトル、同じ URL を除いた残りを出すので、LIMIT に届かないことがある。
      */
     public const CANDIDATES = 100;
 
@@ -45,7 +45,9 @@ class SearchSitemapPages
     {
         $rows = DB::table('sitemap_page_embeddings')
             ->join('sitemap_pages', 'sitemap_pages.id', '=', 'sitemap_page_embeddings.sitemap_page_id')
+            ->join('sitemaps', 'sitemaps.id', '=', 'sitemap_pages.sitemap_id')
             ->where('sitemap_pages.searchable', true)
+            ->where('sitemaps.searchable', true)
             ->whereNull('sitemap_pages.unlisted_at')
             ->whereNotNull('sitemap_pages.body')
             ->where(function (Builder $query): void {
@@ -151,7 +153,9 @@ class SearchSitemapPages
                     LIMIT {$candidates}
                 ) AS candidates
                 INNER JOIN sitemap_pages ON sitemap_pages.id = candidates.sitemap_page_id
+                INNER JOIN sitemaps ON sitemaps.id = sitemap_pages.sitemap_id
                 WHERE sitemap_pages.searchable = 1
+                  AND sitemaps.searchable = 1
                   AND sitemap_pages.unlisted_at IS NULL
                   AND sitemap_pages.body IS NOT NULL
                   AND (sitemap_pages.http_status IS NULL OR sitemap_pages.http_status <> 404)
@@ -210,7 +214,9 @@ class SearchSitemapPages
         $pattern = '%'.$this->escapeLike($term).'%';
         $rows = DB::table('sitemap_pages')
             ->selectRaw('MIN(sitemap_pages.id) as page_id')
+            ->join('sitemaps', 'sitemaps.id', '=', 'sitemap_pages.sitemap_id')
             ->where('sitemap_pages.searchable', true)
+            ->where('sitemaps.searchable', true)
             ->whereNull('sitemap_pages.unlisted_at')
             ->whereNotNull('sitemap_pages.body_sha256')
             ->where(function (Builder $query): void {

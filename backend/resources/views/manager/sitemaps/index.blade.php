@@ -38,6 +38,7 @@
                 <table class="w-full border-collapse text-left text-sm" data-csrf="{{ csrf_token() }}">
                     <thead>
                         <tr class="border-b border-[#e3e3e0]">
+                            <th class="px-3 py-2 font-medium">検索対象</th>
                             <th class="px-3 py-2 font-medium">URL</th>
                             <th class="px-3 py-2 font-medium">状態</th>
                             <th class="px-3 py-2 font-medium">掲載数</th>
@@ -61,7 +62,22 @@
                     </thead>
                     <tbody>
                         @foreach ($sitemaps as $sitemap)
-                            <tr class="border-b border-[#e3e3e0] align-top">
+                            <tr @class(['border-b border-[#e3e3e0] align-top']) @unless ($sitemap->searchable) data-search-off="true" @endunless>
+                                <td class="px-3 py-2">
+                                    <button
+                                        type="button"
+                                        class="search-toggle"
+                                        role="switch"
+                                        aria-checked="{{ $sitemap->searchable ? 'true' : 'false' }}"
+                                        aria-label="検索対象"
+                                        data-search-toggle
+                                        data-url="{{ route('manager.sitemaps.searchable', $sitemap) }}"
+                                    >
+                                        <span class="search-toggle-track" aria-hidden="true">
+                                            <span class="search-toggle-knob"></span>
+                                        </span>
+                                    </button>
+                                </td>
                                 <td class="px-3 py-2">
                                     <div class="flex items-center gap-2">
                                         <span class="min-w-0 break-all">{{ $sitemap->url }}</span>

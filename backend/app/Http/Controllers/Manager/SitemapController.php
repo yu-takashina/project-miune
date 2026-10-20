@@ -203,6 +203,20 @@ class SitemapController extends Controller
         ]);
     }
 
+    public function updateSitemapSearchable(Request $request, Sitemap $sitemap): JsonResponse
+    {
+        $request->validate([
+            'searchable' => ['required', 'boolean'],
+        ]);
+
+        $sitemap->searchable = $request->boolean('searchable');
+        $sitemap->save();
+
+        return response()->json([
+            'searchable' => $sitemap->searchable,
+        ]);
+    }
+
     public function updateAbsenceLimit(Request $request, Sitemap $sitemap): JsonResponse
     {
         $request->validate([
